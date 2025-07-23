@@ -22,9 +22,7 @@ const cors = require('cors');
 const axios = require('axios'); // Import axios
 var bodyParser = require('body-parser');
 
-// Configure body-parser with increased limits
-app.use(bodyParser.json({ limit: '500mb' }));  // Increase as needed
-app.use(bodyParser.urlencoded({ limit: '500mb', extended: true }));
+
 
 // Also increase Express limit
 app.use(express.json({ limit: '500mb' }));
@@ -84,6 +82,10 @@ app.get('/api/test', (req, res) => {
 app.listen(3001, '0.0.0.0', () => {
   console.log('Server running on port 3001');
 });
+
+// Configure body-parser with increased limits
+app.use(bodyParser.json({ limit: '500mb' }));  // Increase as needed
+app.use(bodyParser.urlencoded({ limit: '500mb', extended: true }));
 
 // Initialize Salesforce Connection
 async function initializeSalesforceConnection() {
