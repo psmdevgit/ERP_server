@@ -18,7 +18,7 @@ const fs = require('fs');
 const path = require('path');
 const os = require('os');
 const puppeteer = require('puppeteer-core');
-const cors = require('cors');
+
 const axios = require('axios'); // Import axios
 var bodyParser = require('body-parser');
 
@@ -32,46 +32,57 @@ app.use(express.urlencoded({
   parameterLimit: 50000 
 }));
 
-//cors
+const cors = require('cors');
+
+const allowedOrigins = [
+  "app://-",
+  "app://.",
+  "http://localhost:3000",
+  "http://localhost:3001",
+  "http://192.168.5.62:3000",
+  "https://psmgoldcrafts-com.vercel.app",
+  "https://erp-server-r9wh.onrender.com"
+];
 
 app.use(cors({
-  origin: [
-    "app://-",  // Allow Electron app
-    "app://.",  // Alternative Electron origin
-    "http://localhost:3000", // Localhost for development
-    "http://localhost:3001",
-    "http://192.168.5.62:3000",
-   "https://psmgoldcrafts-com.vercel.app" ,
-    // Your Vercel frontend URL
-    "https://erp-server-r9wh.onrender.com",
-    "file://" // For Electron file protocol
-  ],
-  credentials: true, // Allow credentials (cookies, authorization headers)
-  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"], // Allowed HTTP methods
+  origin: function (origin, callback) {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS: ' + origin));
+    }
+  },
+  credentials: true,
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
   allowedHeaders: [
-    "Content-Type", 
-    "Authorization", 
+    "Content-Type",
+    "Authorization",
     "Origin",
     "X-Requested-With",
     "Accept"
-  ], // Allowed headers
+  ],
   exposedHeaders: ["set-cookie"]
 }));
 
-// Add preflight handling
-app.options('*', cors()); // Enable pre-flight for all routes
+// Proper preflight handling with same config
+app.options('*', cors({
+  origin: allowedOrigins,
+  credentials: true
+}));
 
-// Add error handling middleware
+// JSON middleware
+app.use(express.json());
+
+// Error handling
 app.use((err, req, res, next) => {
-  console.error('Error:', err);
+  console.error('Error:', err.message);
   res.status(err.status || 500).json({
     success: false,
     message: err.message || 'Internal server error'
   });
 });
 
-// Middlew
-app.use(express.json());
+
 
 // Salesforce Connection
 let conn;
