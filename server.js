@@ -41,7 +41,9 @@ app.use(cors({
     "http://localhost:3000", // Localhost for development
     "http://localhost:3001",
     "http://192.168.5.62:3000",
-   "https://psmgoldcrafts-com.vercel.app" , // Your Vercel frontend URL
+   "https://psmgoldcrafts-com.vercel.app" ,
+    // Your Vercel frontend URL
+    "https://erp-server-r9wh.onrender.com",
     "file://" // For Electron file protocol
   ],
   credentials: true, // Allow credentials (cookies, authorization headers)
