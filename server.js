@@ -7071,10 +7071,10 @@ app.get("/api/plating/:prefix/:date/:month/:year/:number/:subnumber/pouches", as
 });
 
 /**----------------- Get Pouches for Cutting ----------------- */
-app.get("/api/cutting/:prefix/:date/:month/:year/:number/pouches", async (req, res) => {
+app.get("/api/cutting/:prefix/:date/:month/:year/:number/:subnumber/pouches", async (req, res) => {
   try {
-    const { prefix, date, month, year, number } = req.params;
-    const cuttingId = `${prefix}/${date}/${month}/${year}/${number}`;
+    const { prefix, date, month, year, number, subnumber } = req.params;
+    const cuttingId = `${prefix}/${date}/${month}/${year}/${number}/${subnumber}`;
     
     console.log('[Get Cutting Pouches] Fetching details for cutting:', cuttingId);
 
