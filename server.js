@@ -6506,6 +6506,176 @@ app.post("/api/plating/update/:prefix/:date/:month/:year/:number/:subnumber", as
 });
 
 /**----------------- Update Cutting Received Weight ----------------- */
+
+app.post("/api/cutting/update/:prefix/:date/:month/:year/:number/:subnumber", async (req, res) => {
+  try {
+    const { prefix, date, month, year, number, subnumber } = req.params;
+    const { receivedDate, receivedWeight, cuttingLoss, scrapReceivedWeight, dustReceivedWeight, ornamentWeight, pouches } = req.body;
+    const cuttingNumber = `${prefix}/${date}/${month}/${year}/${number}/${subnumber}`;
+
+    console.log('[Cutting Update] Received data:', { 
+      cuttingNumber, 
+      receivedDate, 
+      receivedWeight, 
+      cuttingLoss,
+      scrapReceivedWeight,
+      dustReceivedWeight,
+      ornamentWeight,
+      pouches 
+    });
+
+    // First get the Cutting record
+    const cuttingQuery = await conn.query(
+      `SELECT Id, Name FROM Cutting__c WHERE Name = '${cuttingNumber}'`
+    );
+
+    if (!cuttingQuery.records || cuttingQuery.records.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "Cutting record not found"
+      });
+    }
+
+    const cutting = cuttingQuery.records[0];
+
+    // Update the cutting record
+    const updateData = {
+      Id: cutting.Id,
+      Received_Date__c: receivedDate,
+      Returned_Weight__c: receivedWeight,
+      Cutting_Loss__c: cuttingLoss,
+      Cutting_Scrap_Weight__c: scrapReceivedWeight,
+      Cutting_Dust_Weight__c: dustReceivedWeight,
+      Cutting_Ornament_Weight__c: ornamentWeight,
+      Status__c: 'Finished'
+    };
+
+    const updateResult = await conn.sobject('Cutting__c').update(updateData);
+
+    if (!updateResult.success) {
+      throw new Error('Failed to update cutting record');
+    }
+
+    // Update pouches if provided
+    if (pouches && pouches.length > 0) {
+      for (const pouch of pouches) {
+        try {
+          const pouchUpdateResult = await conn.sobject('Pouch__c').update({
+            Id: pouch.pouchId,
+            Received_Weight_Cutting__c: pouch.receivedWeight,
+            Cutting_Loss__c: cuttingLoss
+          });
+
+          console.log(`[Cutting Update] Pouch update result for ${pouch.pouchId}:`, pouchUpdateResult);
+        } catch (pouchError) {
+          console.error(`[Cutting Update] Failed to update pouch ${pouch.pouchId}:`, pouchError);
+          throw pouchError;
+        }
+      }
+    }
+
+    // Check if scrap inventory exists for this purity
+    const scrapInventoryQuery = await conn.query(
+      `SELECT Id, Available_weight__c FROM Inventory_ledger__c 
+       WHERE Item_Name__c = 'Scrap' 
+       AND Purity__c = '${cutting.Purity__c || '91.7%'}'`
+    );
+
+    if (scrapReceivedWeight > 0) {
+      if (scrapInventoryQuery.records.length > 0) {
+        // Update existing scrap inventory
+        const currentWeight = scrapInventoryQuery.records[0].Available_weight__c || 0;
+        const scrapUpdateResult = await conn.sobject('Inventory_ledger__c').update({
+          Id: scrapInventoryQuery.records[0].Id,
+          Available_weight__c: currentWeight + scrapReceivedWeight,
+          Last_Updated__c: receivedDate
+        });
+
+        if (!scrapUpdateResult.success) {
+          throw new Error('Failed to update scrap inventory');
+        }
+      } else {
+        // Create new scrap inventory
+        const scrapCreateResult = await conn.sobject('Inventory_ledger__c').create({
+          Name: 'Scrap',
+          Item_Name__c: 'Scrap',
+          Purity__c: cutting.Purity__c || '91.7%',
+          Available_weight__c: scrapReceivedWeight,
+          Unit_of_Measure__c: 'Grams',
+          Last_Updated__c: receivedDate
+        });
+
+        if (!scrapCreateResult.success) {
+          throw new Error('Failed to create scrap inventory');
+        }
+      }
+    }
+
+    // Check if dust inventory exists
+    const dustInventoryQuery = await conn.query(
+      `SELECT Id, Available_weight__c FROM Inventory_ledger__c 
+       WHERE Item_Name__c = 'Dust' 
+       AND Purity__c = '${cutting.Purity__c || '91.7%'}'`
+    );
+
+    if (dustReceivedWeight > 0) {
+      if (dustInventoryQuery.records.length > 0) {
+        // Update existing dust inventory
+        const currentWeight = dustInventoryQuery.records[0].Available_weight__c || 0;
+        const dustUpdateResult = await conn.sobject('Inventory_ledger__c').update({
+          Id: dustInventoryQuery.records[0].Id,
+          Available_weight__c: currentWeight + dustReceivedWeight,
+          Last_Updated__c: receivedDate
+        });
+
+        if (!dustUpdateResult.success) {
+          throw new Error('Failed to update dust inventory');
+        }
+      } else {
+        // Create new dust inventory
+        const dustCreateResult = await conn.sobject('Inventory_ledger__c').create({
+          Name: 'Dust',
+          Item_Name__c: 'Dust',
+          Purity__c: cutting.Purity__c || '91.7%',
+          Available_weight__c: dustReceivedWeight,
+          Unit_of_Measure__c: 'Grams',
+          Last_Updated__c: receivedDate
+        });
+
+        if (!dustCreateResult.success) {
+          throw new Error('Failed to create dust inventory');
+        }
+      }
+    }
+
+    res.json({
+      success: true,
+      message: "Cutting record updated successfully",
+      data: {
+        cuttingNumber,
+        receivedDate,
+        receivedWeight,
+        cuttingLoss,
+        scrapReceivedWeight,
+        dustReceivedWeight,
+        ornamentWeight,
+        status: 'Finished'
+      }
+    });
+
+  } catch (error) {
+    console.error("[Cutting Update] Error:", error);
+    console.error("[Cutting Update] Full error details:", JSON.stringify(error, null, 2));
+    res.status(500).json({
+      success: false,
+      message: error.message || "Failed to update cutting record"
+    });
+  }
+});
+
+
+
+
 app.post("/api/cutting/update/:prefix/:date/:month/:year/:number", async (req, res) => {
   try {
     const { prefix, date, month, year, number } = req.params;
