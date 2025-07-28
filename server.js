@@ -200,6 +200,25 @@ app.post("/login", checkSalesforceConnection, async (req, res) => {
 });
 
 /** ----------------- Item Groups Management ------------------ **/
+app.get("/OrderIDNumber", checkSalesforceConnection, async (req, res) => { 
+  try {
+    const query = `
+      SELECT Id, Order_Id__c 
+      FROM Order__c
+      ORDER BY Order_Id__c
+    `;
+    const result = await conn.query(query);
+
+    if (result.records.length === 0) {
+      return res.status(404).json({ success: false, message: "No orders found." });
+    }
+
+    res.json({ success: true, data: result.records });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 
 // Create Item Group
 app.post("/add-item-group", checkSalesforceConnection, async (req, res) => {
