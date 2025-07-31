@@ -1811,7 +1811,7 @@ app.post("/api/casting/update/:date/:month/:year/:number", async (req, res) => {
 
 
 /**-----------------Get all Casting Details  ----------------- */
-app.get("/api/casting/all/:year/:month/:date/:number", async (req, res) => {
+app.get("/api/casting/all/:date/:month/:year/:number", async (req, res) => {
   try {
     const { date, month, year, number } = req.params;
     const castingId = `${date}/${month}/${year}/${number}`;
