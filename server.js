@@ -1858,7 +1858,8 @@ app.get("/api/casting/all/:date/:month/:year/:number", async (req, res) => {
         id__c,
         Casting__c
        FROM Order__c 
-       WHERE Casting__c = '${casting.Id}'`
+      `
+       // WHERE Casting__c = '${casting.Id}'
     );
 
     // 3. Get Related Inventory Items
