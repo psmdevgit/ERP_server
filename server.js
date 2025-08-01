@@ -2137,7 +2137,7 @@ app.get("/api/filing", async (req, res) => {
         Product__c,
         Quantity__c,
         Status__c,
-        Filing_loss__c
+        Filing_loss__c,Filing_scrap_Weight__c,Filing_Dust_Weight__c
       FROM Filing__c
       ORDER BY Issued_Date__c DESC
     `;
