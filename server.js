@@ -1363,6 +1363,56 @@ app.get("/get-inventory", async (req, res) => {
   }
 });
 
+//    get issuded inventory items
+
+app.get("/get-inventory-IssuedItems", async (req, res) => {
+  try {
+    // Query to fetch inventory items with their names and available weights
+    const query = `
+      SELECT 
+        Issued_inventory_Name__c,
+        Issued_Date__c,
+        Issue_weight__c,
+        Purity__c,
+        Pure_Metal_weight__c,
+        Alloy_Weight__c,
+        Casting__c
+      FROM issued_inventory_items__c
+      ORDER BY Name ASC
+    `;
+
+    const result = await conn.query(query);
+
+    if (!result.records) {
+      return res.status(404).json({
+        success: false,
+        message: "No inventory items found"
+      });
+    }
+
+    // Format the response data
+    const inventoryItems = result.records.map(item => ({
+      name: item.Item_Name__c,
+      availableWeight: item.Available_weight__c,
+      purity: item.Purity__c
+    }));
+
+    res.status(200).json({
+      success: true,
+      message: "Inventory items fetched successfully",
+      data: inventoryItems
+    });
+
+  } catch (error) {
+    console.error("Error fetching inventory:", error);
+    res.status(500).json({
+      success: false,
+      message: error.message || "Failed to fetch inventory items"
+    });
+  }
+});
+
+
 /**--------------------------Casting Management---------- **/
 
 app.post("/api/casting", async (req, res) => {
