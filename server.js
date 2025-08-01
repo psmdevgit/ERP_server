@@ -6970,7 +6970,7 @@ app.get("/api/cutting", async (req, res) => {
         Quantity__c,
         Order_Id__c,
         Cutting_loss__c,
-        CreatedDate
+        CreatedDate,Cutting_Scrap_Weight__c ,Cutting_Ornament_Weight__c
        FROM Cutting__c
        ORDER BY CreatedDate DESC`
     );
