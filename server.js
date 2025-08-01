@@ -1377,7 +1377,7 @@ app.get("/get-inventory-IssuedItems", async (req, res) => {
         Pure_Metal_weight__c,
         Alloy_Weight__c,
         Casting__c
-      FROM issued_inventory_items__c
+      FROM issued_inventory_items
       ORDER BY Name ASC
     `;
 
