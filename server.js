@@ -2210,7 +2210,10 @@ app.get("/api/filing", async (req, res) => {
         product : record.Product__c,
         quantity : record.Quantity__c,
         Status: record.Status__c,
-        Filing_Loss: record.Filing_loss__c          // Fixed from query field
+        Filing_Loss: record.Filing_loss__c,
+        scarpWeight:record.Filing_scrap_Weight__c,
+        dustWeight:record.Filing_Dust_Weight__c
+        // Fixed from query field
       };
     });
 
