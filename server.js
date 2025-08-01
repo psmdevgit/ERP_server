@@ -3854,7 +3854,7 @@ app.get("/api/polishing", async (req, res) => {
         Product__c,
         status__c,
         Polishing_loss__c,
-        CreatedDate
+        CreatedDate,Polishing_Scrap_Weight__c,Polishing_Dust_Weight__c
        FROM Polishing__c
        ORDER BY CreatedDate DESC`
     );
