@@ -6880,7 +6880,7 @@ app.get("/api/plating", async (req, res) => {
         Order_Id__c,
         Quantity__c,
         Plating_loss__c,
-        CreatedDate
+        CreatedDate,Plating_Scrap_Weight__c,Plating_Dust_Weight__c
        FROM Plating__c
        ORDER BY CreatedDate DESC`
     );
