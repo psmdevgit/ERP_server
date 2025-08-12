@@ -7572,3 +7572,60 @@ app.get("/api/cutting/:prefix/:date/:month/:year/:number/:subnumber/pouches", as
     });
   }
 });
+
+
+// =============================================================================
+
+
+
+app.get("/get-inventory-transactions", async (req, res) => {
+  try {
+    // Query Salesforce for issued inventory records
+    const result = await conn.query(`
+      SELECT 
+        Id,
+        Name,
+        Issued_Date__c,
+        Purity__c,
+        Pure_Metal_weight__c,
+        Alloy_Weight__c,
+        CreatedDate,
+        CreatedBy.Name
+      FROM Issued_inventory__c
+      ORDER BY CreatedDate ASC
+    `);
+
+    if (!result.records || result.records.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "Inventory Issued records not found"
+      });
+    }
+
+    // Map Salesforce data to desired JSON format
+    const inventoryItems = result.records.map(item => ({
+      id: item.Id,
+      name: item.Name,
+      purity: item.Purity__c,
+      issuedDate: item.Issued_Date__c,
+      pureMetalWeight: item.Pure_Metal_weight__c,
+      alloyWeight: item.Alloy_Weight__c,
+      createdDate: item.CreatedDate,
+      createdByName: item.CreatedBy?.Name || null
+    }));
+
+    res.status(200).json({
+      success: true,
+      message: "Inventory Transaction items fetched successfully",
+      data: inventoryItems
+    });
+
+  } catch (error) {
+    console.error("Error fetching inventory:", error);
+    res.status(500).json({
+      success: false,
+      message: error.message || "Failed to fetch inventory items"
+    });
+  }
+});
+
