@@ -7664,23 +7664,45 @@ app.get("/api/process-summary", async (req, res) => {
 
       const queryRes = await conn.query(soql);
 
-      let issued = 0, received = 0, loss = 0, scrap = 0, dust = 0;
-      queryRes.records.forEach(r => {
-        issued += parseFloat(r[p.fields.issued] || 0);
-        received += parseFloat(r[p.fields.received] || 0);
-        loss += parseFloat(r[p.fields.loss] || 0);
-        scrap += parseFloat(p.fields.scrap ? r[p.fields.scrap] || 0 : 0);
-        dust += parseFloat(r[p.fields.dust] || 0);
-      });
+      let issued = 0, received = 0, loss = 0, scrap = 0, dust = 0,processWt=0;
+      // queryRes.records.forEach(r => {
+      //   issued += parseFloat(r[p.fields.issued] || 0);
+      //   processWt += parseFloat(r[p.fields.received > 0 ? p.fields.issued : 0]);
+      //   received += parseFloat(r[p.fields.received] || 0);
+      //   loss += parseFloat(r[p.fields.loss] || 0);
+      //   scrap += parseFloat(p.fields.scrap ? r[p.fields.scrap] || 0 : 0);
+      //   dust += parseFloat(r[p.fields.dust] || 0);
+      // });
 
-      results.push({
-        process: p.name,
-        issued_wt: issued,
-        received_wt: received,
-        loss_wt: loss,
-        scrap_wt: scrap,
-        dust_wt: dust
-      });
+    queryRes.records.forEach(r => {
+  const issuedVal = parseFloat(r[p.fields.issued] || 0);
+  const receivedVal = parseFloat(r[p.fields.received] || 0);
+
+  issued += issuedVal;
+
+  // ✅ Check the actual received value
+  if (receivedVal == 0) {
+    processWt += issuedVal;
+  }
+
+  received += receivedVal;
+  loss += parseFloat(r[p.fields.loss] || 0);
+  scrap += parseFloat(p.fields.scrap ? r[p.fields.scrap] || 0 : 0);
+  dust += parseFloat(r[p.fields.dust] || 0);
+});
+
+
+
+results.push({
+  process: p.name,
+  issued_wt: issued,
+  process_wt: processWt, // ✅ now has real value
+  received_wt: received,
+  loss_wt: loss,
+  scrap_wt: scrap,
+  dust_wt: dust
+});
+
     }
 
     res.json({ success: true, data: results });
@@ -7689,4 +7711,6 @@ app.get("/api/process-summary", async (req, res) => {
     res.status(500).json({ success: false, message: "Error fetching process summary", error: err.message });
   }
 });
+
+
 
