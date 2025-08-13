@@ -7630,6 +7630,8 @@ app.get("/get-inventory-transactions", async (req, res) => {
 });
 
 
+// ======================  process rpeort overall with date filter ==================================================
+
 app.get("/api/process-summary", async (req, res) => {
   try {
     const { fromDate, toDate } = req.query;
@@ -7645,8 +7647,8 @@ app.get("/api/process-summary", async (req, res) => {
       { name: "Setting", object: "Setting__c", dateField: "Issued_Date__c", fields: { issued: "Issued_Weight__c", received: "Returned_weight__c", loss: "Setting_l__c", scrap: "Setting_Scrap_Weight__c", dust: "Setting_Dust_Weight__c" }},
       { name: "Polishing", object: "Polishing__c", dateField: "Issued_Date__c", fields: { issued: "Issued_Weight__c", received: "Received_Weight__c", loss: "Polishing_Loss__c", scrap: "Polishing_Scrap_Weight__c", dust: "Polishing_Dust_Weight__c" }},
       { name: "Dull", object: "Dull__c", dateField: "Issued_Date__c", fields: { issued: "Issued_Weight__c", received: "Returned_weight__c", loss: "Dull_loss__c", scrap: "Dull_Scrap_Weight__c", dust: "Dull_Dust_Weight__c" }},
-      { name: "Plating", object: "Plating__c", dateField: "Issued_Date__c", fields: { issued: "Issued_Weight__c", received: "Returned_weight__c", loss: "Plating_loss__c", scrap: "Plating_Scrap_Weight__c", dust: "Plating_Dust_Weight__c" }},
-      { name: "Cutting", object: "Cutting__c", dateField: "Issued_Date__c", fields: { issued: "Issued_Weight__c", received: "Returned_weight__c", loss: "Cutting_loss__c", scrap: "Cutting_Scrap_Weight__c", dust: "Cutting_Dust_Weight__c" }}
+      { name: "Plating", object: "Plating__c", dateField: "Issued_Date__c", fields: { issued: "Issued_Weight__c", received: "Returned_Weight__c", loss: "Plating_loss__c", scrap: "Plating_Scrap_Weight__c", dust: "Plating_Dust_Weight__c" }},
+      { name: "Cutting", object: "Cutting__c", dateField: "Issued_Date__c", fields: { issued: "Issued_Weight__c", received: "Returned_Weight__c", loss: "Cutting_loss__c", scrap: "Cutting_Scrap_Weight__c", dust: "Cutting_Dust_Weight__c" }}
     ];
 
     let results = [];
@@ -7665,16 +7667,11 @@ app.get("/api/process-summary", async (req, res) => {
       const queryRes = await conn.query(soql);
 
       let issued = 0, received = 0, loss = 0, scrap = 0, dust = 0,processWt=0;
-      // queryRes.records.forEach(r => {
-      //   issued += parseFloat(r[p.fields.issued] || 0);
-      //   processWt += parseFloat(r[p.fields.received > 0 ? p.fields.issued : 0]);
-      //   received += parseFloat(r[p.fields.received] || 0);
-      //   loss += parseFloat(r[p.fields.loss] || 0);
-      //   scrap += parseFloat(p.fields.scrap ? r[p.fields.scrap] || 0 : 0);
-      //   dust += parseFloat(r[p.fields.dust] || 0);
-      // });
-
+    
     queryRes.records.forEach(r => {
+      
+      console.log(p.name +" - "+r[p.fields.received]);
+
   const issuedVal = parseFloat(r[p.fields.issued] || 0);
   const receivedVal = parseFloat(r[p.fields.received] || 0);
 
@@ -7712,5 +7709,86 @@ results.push({
   }
 });
 
+// ======================================================================================================================
 
+app.get("/api/process-report", async (req, res) => {
+  try {
+  
+
+    const processes = [
+      { name: "Casting", object: "Casting_dept__c",  fields: { issued: "Issud_weight__c", received: "Weight_Received__c", loss: "Casting_Loss__c", scrap: "Casting_Scrap_Weight__c", dust: "Casting_Dust_Weight__c" }},
+      { name: "Filing", object: "Filing__c",  fields: { issued: "Issued_weight__c", received: "Receievd_weight__c", loss: "Filing_loss__c", scrap: "Filing_Scrap_Weight__c", dust: "Filing_Dust_Weight__c" }},
+      { name: "Grinding", object: "Grinding__c",  fields: { issued: "Issued_Weight__c", received: "Received_Weight__c", loss: "Grinding_loss__c", scrap: "Grinding_Scrap_Weight__c", dust: "Grinding_Dust_Weight__c" }},
+      { name: "Setting", object: "Setting__c",  fields: { issued: "Issued_Weight__c", received: "Returned_weight__c", loss: "Setting_l__c", scrap: "Setting_Scrap_Weight__c", dust: "Setting_Dust_Weight__c" }},
+      { name: "Polishing", object: "Polishing__c",  fields: { issued: "Issued_Weight__c", received: "Received_Weight__c", loss: "Polishing_Loss__c", scrap: "Polishing_Scrap_Weight__c", dust: "Polishing_Dust_Weight__c" }},
+      { name: "Dull", object: "Dull__c",fields: { issued: "Issued_Weight__c", received: "Returned_weight__c", loss: "Dull_loss__c", scrap: "Dull_Scrap_Weight__c", dust: "Dull_Dust_Weight__c" }},
+      { name: "Plating", object: "Plating__c",  fields: { issued: "Issued_Weight__c", received: "Returned_Weight__c", loss: "Plating_loss__c", scrap: "Plating_Scrap_Weight__c", dust: "Plating_Dust_Weight__c" }},
+      { name: "Cutting", object: "Cutting__c", fields: { issued: "Issued_Weight__c", received: "Returned_Weight__c", loss: "Cutting_loss__c", scrap: "Cutting_Scrap_Weight__c", dust: "Cutting_Dust_Weight__c" }}
+    ];
+
+    console.log(processes);
+
+    let results = [];
+
+    for (let p of processes) {
+      const fieldList = Object.values(p.fields).filter(Boolean).join(", ");
+      
+      // Add date filter in SOQL
+      const soql = `SELECT ${fieldList} FROM ${p.object}`;
+
+      const queryRes = await conn.query(soql);
+
+      let issued = 0, received = 0, loss = 0, scrap = 0, dust = 0,processWt=0;
+    
+
+    queryRes.records.forEach(r => {
+
+
+      console.log(p.name+" - "+r[p.fields.received])
+
+  const issuedVal = parseFloat(r[p.fields.issued] || 0);
+  const receivedVal = parseFloat(r[p.fields.received] || 0);
+
+  issued += issuedVal;
+
+  // ✅ Check the actual received value
+  if (receivedVal == 0) {
+    processWt += issuedVal;
+  }
+  else{
+    processWt = 0;
+  }
+
+
+
+  received += receivedVal;
+  // loss += parseFloat(r[p.fields.loss] || 0);
+  // scrap += parseFloat(p.fields.scrap ? r[p.fields.scrap] || 0 : 0);
+  // dust += parseFloat(r[p.fields.dust] || 0);
+});
+
+
+results.push({
+  process: p.name,
+  issued_wt: issued,
+  process_wt: processWt, // ✅ now has real value
+  received_wt: received,
+  // loss_wt: loss,
+  // scrap_wt: scrap,
+  // dust_wt: dust
+});
+
+
+    }
+
+    res.json({ success: true, data: results });
+
+console.log(results)
+
+  } catch (err) {
+    console.error("Error fetching process summary:", err);
+    res.status(500).json({ success: false, message: "Error fetching process summary", error: err.message });
+    
+  }
+});
 
