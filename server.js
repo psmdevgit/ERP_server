@@ -1342,11 +1342,19 @@ app.get("/get-inventory", async (req, res) => {
     }
 
     // Format the response data
-    const inventoryItems = result.records.map(item => ({
-      name: item.Item_Name__c,
-      availableWeight: item.Available_weight__c,
-      purity: item.Purity__c
-    }));
+    // const inventoryItems = result.records.map(item => ({
+    //   name: item.Item_Name__c,
+    //   availableWeight: item.Available_weight__c,
+    //   purity: item.Purity__c
+    // }));
+
+       const inventoryItems = result.records
+  .filter(item => item.Item_Name__c?.trim().toLowerCase() !== "alloy")
+  .map(item => ({
+    name: item.Item_Name__c,
+    availableWeight: item.Available_weight__c,
+    purity: item.Purity__c
+  }));
 
     res.status(200).json({
       success: true,
@@ -7820,4 +7828,30 @@ console.log(results)
     
   }
 });
+
+
+
+// ========================== Preview model =================================================================
+
+// Get models for category
+app.get("/api/previewModels", async (req, res) => {
+  const { categoryId } = req.query;
+  if (!categoryId) {
+    return res.status(400).json({ error: "categoryId is required" });
+  }
+
+  try {
+    const result = await conn.query(
+      `SELECT Id, Name, Image_URL__c 
+       FROM Jewlery_Model__c 
+       WHERE Category__c = '${categoryId}'
+       ORDER BY Name`
+    );
+    res.json(result.records);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Failed to fetch models" });
+  }
+});
+
 
