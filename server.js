@@ -495,12 +495,12 @@ app.post("/api/add-jewelry", upload.single("item-image"), async (req, res) => {
       }
 
       const stoneRecords = stoneDetailsData.map((stone) => ({
-        Name: stone.name,
+        Name__c: stone.name,
         Stone_Type__c: stone.type,
         Color__c: stone.color,
         Stone_Size__c: stone.size,
         Quantity__c: stone.Quantity,
-        JewelryModel__c: jewelryModelId,
+        Jewlery_Model__c: jewelryModelId,
       }));
 
       console.log("Prepared stone records for insertion:", stoneRecords);
