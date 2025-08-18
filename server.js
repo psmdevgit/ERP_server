@@ -1770,8 +1770,8 @@ app.post("/api/casting/update/:date/:month/:year/:number", async (req, res) => {
     // Check if scrap inventory exists for this purity
     const scrapInventoryQuery = await conn.query(
       `SELECT Id, Available_weight__c FROM Inventory_ledger__c 
-       WHERE Item_Name__c = 'scrap'
-       AND Purity__c = '91.7%'
+       WHERE Item_Name__c = 'Casting Scarp'
+       AND Purity__c = '91.7'
        `
     );
 
@@ -1791,8 +1791,8 @@ app.post("/api/casting/update/:date/:month/:year/:number", async (req, res) => {
       } else {
         // Create new scrap inventory
         const scrapCreateResult = await conn.sobject('Inventory_ledger__c').create({
-          Name: 'Scrap',
-          Item_Name__c: 'Scrap',
+          Name: 'Casting Scarp',
+          Item_Name__c: 'Casting Scarp',
           Purity__c: casting.Required_Purity__c,
           Available_weight__c: scrapReceivedWeight,
           Unit_of_Measure__c: 'Grams',
@@ -1808,8 +1808,8 @@ app.post("/api/casting/update/:date/:month/:year/:number", async (req, res) => {
     // Check if dust inventory exists
     const dustInventoryQuery = await conn.query(
       `SELECT Id, Available_weight__c FROM Inventory_ledger__c 
-       WHERE Item_Name__c = 'Dust' 
-       AND Purity__c = '91.7%'`
+       WHERE Item_Name__c = 'Casting Dust' 
+       AND Purity__c = '91.7'`
     );
 
     if (dustReceivedWeight > 0) {
@@ -1828,8 +1828,8 @@ app.post("/api/casting/update/:date/:month/:year/:number", async (req, res) => {
       } else {
         // Create new dust inventory
         const dustCreateResult = await conn.sobject('Inventory_ledger__c').create({
-          Name: 'Dust',
-          Item_Name__c: 'Dust',
+          Name: 'Casting Dust',
+          Item_Name__c: 'Casting Dust',
           Purity__c: casting.Required_Purity__c,
           Available_weight__c: dustReceivedWeight,
           Unit_of_Measure__c: 'Grams',
@@ -1866,7 +1866,6 @@ app.post("/api/casting/update/:date/:month/:year/:number", async (req, res) => {
     });
   }
 });
-
 
 /**-----------------Get all Casting Details  ----------------- */
 app.get("/api/casting/all/:date/:month/:year/:number", async (req, res) => {
