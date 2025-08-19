@@ -3106,7 +3106,7 @@ app.post("/api/grinding/update/:prefix/:date/:month/:year/:number/:subnumber", a
     if (dustReceivedWeight > 0) {
       const dustInventoryQuery = await conn.query(
       `SELECT Id, Available_weight__c ,Purity__c FROM Inventory_ledger__c 
-     WHERE Item_Name__c = 'Dust' and Purity__c ='91.7%'`
+     WHERE Item_Name__c = 'G Machine Dust' and Purity__c ='91.7'`
       );
 
       if (dustInventoryQuery.records.length > 0) {
@@ -3127,8 +3127,8 @@ app.post("/api/grinding/update/:prefix/:date/:month/:year/:number/:subnumber", a
         const dustCreateResult = await conn
           .sobject("Inventory_ledger__c")
           .create({
-            Name: "Dust",
-            Item_Name__c: "Dust",
+            Name: "G Machine Dust",
+            Item_Name__c: "G Machine Dust",
             Purity__c: grinding.Purity__c,
             Available_weight__c: dustReceivedWeight,
             Unit_of_Measure__c: "Grams",
@@ -3452,6 +3452,7 @@ app.get("/api/setting-details/:prefix/:date/:month/:year/:number/:subm", async (
   }
 });
 
+
 /**-----------------Update Setting Received Weight ----------------- */
 app.post("/api/setting/update/:prefix/:date/:month/:year/:number/:subnumber", async (req, res) => {
   try {
@@ -3562,8 +3563,8 @@ app.post("/api/setting/update/:prefix/:date/:month/:year/:number/:subnumber", as
     // Check if dust inventory exists
     const dustInventoryQuery = await conn.query(
       `SELECT Id, Available_weight__c FROM Inventory_ledger__c 
-       WHERE Item_Name__c = 'Dust' 
-       AND Purity__c = '91.7%'`
+       WHERE Item_Name__c = 'Setting Dust' 
+       AND Purity__c = '91.7'`
     );
 
     if (dustReceivedWeight > 0) {
@@ -3582,8 +3583,8 @@ app.post("/api/setting/update/:prefix/:date/:month/:year/:number/:subnumber", as
       } else {
         // Create new dust inventory
         const dustCreateResult = await conn.sobject('Inventory_ledger__c').create({
-          Name: 'Dust',
-          Item_Name__c: 'Dust',
+          Name: 'Setting Dust',
+          Item_Name__c: 'Setting Dust',
           Purity__c: setting.Purity__c,
           Available_weight__c: dustReceivedWeight,
           Unit_of_Measure__c: 'Grams',
@@ -3620,7 +3621,6 @@ app.post("/api/setting/update/:prefix/:date/:month/:year/:number/:subnumber", as
     });
   }
 });
-
 /***-------------Fetch pouch details from grinding----------------- */
 app.get("/api/grinding/:prefix/:date/:month/:year/:number/:subnumber/pouches", async (req, res) => {
   try {
@@ -4133,8 +4133,8 @@ app.post("/api/polishing/update/:prefix/:date/:month/:year/:number/:subnumber", 
     // Check if dust inventory exists
     const dustInventoryQuery = await conn.query(
       `SELECT Id, Available_weight__c FROM Inventory_ledger__c 
-       WHERE Item_Name__c = 'Dust' 
-       AND Purity__c = '91.7%'`
+       WHERE Item_Name__c = 'P Machine Dust' 
+       AND Purity__c = '91.%'`
     );
 
     if (dustReceivedWeight > 0) {
@@ -4153,8 +4153,8 @@ app.post("/api/polishing/update/:prefix/:date/:month/:year/:number/:subnumber", 
       } else {
         // Create new dust inventory
         const dustCreateResult = await conn.sobject('Inventory_ledger__c').create({
-          Name: 'Dust',
-          Item_Name__c: 'Dust',
+          Name: 'P Machine Dust',
+          Item_Name__c: 'P Machine Dust',
           Purity__c: polishing.Purity__c,
           Available_weight__c: dustReceivedWeight,
           Unit_of_Measure__c: 'Grams',
@@ -4188,6 +4188,7 @@ app.post("/api/polishing/update/:prefix/:date/:month/:year/:number/:subnumber", 
     });
   }
 });
+
 
 /**-----------------Get all Polishing Details ----------------- */
 app.get("/api/polishing-details/:prefix/:date/:month/:year/:number", async (req, res) => {
@@ -6617,6 +6618,7 @@ app.post("/api/plating/update/:prefix/:date/:month/:year/:number/:subnumber", as
 
 /**----------------- Update Cutting Received Weight ----------------- */
 
+
 app.post("/api/cutting/update/:prefix/:date/:month/:year/:number/:subnumber", async (req, res) => {
   try {
     const { prefix, date, month, year, number, subnumber } = req.params;
@@ -6724,8 +6726,8 @@ app.post("/api/cutting/update/:prefix/:date/:month/:year/:number/:subnumber", as
     // Check if dust inventory exists
     const dustInventoryQuery = await conn.query(
       `SELECT Id, Available_weight__c FROM Inventory_ledger__c 
-       WHERE Item_Name__c = 'Dust' 
-       AND Purity__c = '${cutting.Purity__c || '91.7%'}'`
+       WHERE Item_Name__c = 'Cutting Dust' 
+       AND Purity__c = '${cutting.Purity__c || '91.7'}'`
     );
 
     if (dustReceivedWeight > 0) {
@@ -6744,9 +6746,9 @@ app.post("/api/cutting/update/:prefix/:date/:month/:year/:number/:subnumber", as
       } else {
         // Create new dust inventory
         const dustCreateResult = await conn.sobject('Inventory_ledger__c').create({
-          Name: 'Dust',
-          Item_Name__c: 'Dust',
-          Purity__c: cutting.Purity__c || '91.7%',
+          Name: 'Cutting Dust',
+          Item_Name__c: 'Cutting Dust',
+          Purity__c: cutting.Purity__c || '91.7',
           Available_weight__c: dustReceivedWeight,
           Unit_of_Measure__c: 'Grams',
           Last_Updated__c: receivedDate
@@ -6782,9 +6784,6 @@ app.post("/api/cutting/update/:prefix/:date/:month/:year/:number/:subnumber", as
     });
   }
 });
-
-
-
 
 app.post("/api/cutting/update/:prefix/:date/:month/:year/:number", async (req, res) => {
   try {
@@ -6893,8 +6892,8 @@ app.post("/api/cutting/update/:prefix/:date/:month/:year/:number", async (req, r
     // Check if dust inventory exists
     const dustInventoryQuery = await conn.query(
       `SELECT Id, Available_weight__c FROM Inventory_ledger__c 
-       WHERE Item_Name__c = 'Dust' 
-       AND Purity__c = '${cutting.Purity__c || '91.7%'}'`
+       WHERE Item_Name__c = 'Cutting Dust' 
+       AND Purity__c = '${cutting.Purity__c || '91.7'}'`
     );
 
     if (dustReceivedWeight > 0) {
@@ -6913,9 +6912,9 @@ app.post("/api/cutting/update/:prefix/:date/:month/:year/:number", async (req, r
       } else {
         // Create new dust inventory
         const dustCreateResult = await conn.sobject('Inventory_ledger__c').create({
-          Name: 'Dust',
-          Item_Name__c: 'Dust',
-          Purity__c: cutting.Purity__c || '91.7%',
+          Name: 'Cutting Dust',
+          Item_Name__c: 'Cutting Dust',
+          Purity__c: cutting.Purity__c || '91.7',
           Available_weight__c: dustReceivedWeight,
           Unit_of_Measure__c: 'Grams',
           Last_Updated__c: receivedDate
@@ -6951,6 +6950,8 @@ app.post("/api/cutting/update/:prefix/:date/:month/:year/:number", async (req, r
     });
   }
 });
+
+
 /**----------------- Get All Plating Records ----------------- */
 app.get("/api/plating", async (req, res) => {
   try {
