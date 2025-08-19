@@ -7868,3 +7868,51 @@ app.get("/api/previewModels", async (req, res) => {
 });
 
 
+// ===============================  generate model name ==========================================
+
+async function generateModelName(category) {
+  if (!category) throw new Error("Category is required");
+
+  const match = category.match(/\(([^)]+)\)/);
+  const shortCode = match
+    ? match[1].trim().toUpperCase()
+    : category.slice(0, 4).toUpperCase();
+
+  // Query Salesforce for existing names
+  const result = await conn.query(`
+    SELECT Name__c FROM Jewlery_Model__c
+    WHERE Name__c LIKE '${shortCode}-%'
+  `);
+
+  const existingNames = result.records.map(r => r.Name__c);
+
+  console.log(existingNames);
+
+
+  // Extract only the last number after '-'
+  const numbers = existingNames.map(name => {
+    const lastPart = name.split("-").pop(); // take last part
+    const num = parseInt(lastPart, 10);
+    return isNaN(num) ? 0 : num;
+  });
+
+  const nextNumber = numbers.length > 0 ? Math.max(...numbers) + 1 : 1;
+  return `${shortCode}-${nextNumber}`;
+}
+
+
+// API endpoint
+app.post("/generate-model-name", async (req, res) => {
+  try {
+    const { category } = req.body;
+    if (!category) {
+      return res.status(400).json({ success: false, message: "Category is required" });
+    }
+
+    const modelName = await generateModelName(category);
+    res.json({ success: true, modelName });
+  } catch (err) {
+    console.error("Error generating model name:", err);
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
