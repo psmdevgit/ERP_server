@@ -3062,7 +3062,7 @@ app.post("/api/grinding/update/:prefix/:date/:month/:year/:number/:subnumber", a
       }
     }
 
-    /** ---- 4. Scrap Inventory Update new ---- **/
+    /** ---- 4. Scrap Inventory Update ---- **/
     if (scrapReceivedWeight > 0) {
       const scrapInventoryQuery = await conn.query(
         `SELECT Id, Available_weight__c FROM Inventory_ledger__c 
@@ -3135,11 +3135,14 @@ app.post("/api/grinding/update/:prefix/:date/:month/:year/:number/:subnumber", a
             Last_Updated__c: receivedDate
           });
 
+
+
         if (!dustCreateResult.success) {
           throw new Error("Failed to create dust inventory");
         }
+        console.log('[Grinding Update] Dust inventory created:', !dustCreateResult.success ? 'Failed' : 'Success');
       }
-    }
+    } 
 
     /** ---- 6. Response ---- **/
     res.json({
