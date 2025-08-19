@@ -3062,7 +3062,7 @@ app.post("/api/grinding/update/:prefix/:date/:month/:year/:number/:subnumber", a
       }
     }
 
-    /** ---- 4. Scrap Inventory Update ---- **/
+    /** ---- 4. Scrap Inventory Update new ---- **/
     if (scrapReceivedWeight > 0) {
       const scrapInventoryQuery = await conn.query(
         `SELECT Id, Available_weight__c FROM Inventory_ledger__c 
