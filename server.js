@@ -1770,8 +1770,8 @@ app.post("/api/casting/update/:date/:month/:year/:number", async (req, res) => {
     // Check if scrap inventory exists for this purity
     const scrapInventoryQuery = await conn.query(
       `SELECT Id, Available_weight__c FROM Inventory_ledger__c 
-       WHERE Item_Name__c = 'Casting Scarp'
-       AND Purity__c = '91.7'
+       WHERE Item_Name__c = 'Casting Scrap'
+       AND Purity__c = '91.7%'
        `
     );
 
@@ -1791,8 +1791,8 @@ app.post("/api/casting/update/:date/:month/:year/:number", async (req, res) => {
       } else {
         // Create new scrap inventory
         const scrapCreateResult = await conn.sobject('Inventory_ledger__c').create({
-          Name: 'Casting Scarp',
-          Item_Name__c: 'Casting Scarp',
+          Name: 'Casting Scrap',
+          Item_Name__c: 'Casting Scrap',
           Purity__c: casting.Required_Purity__c,
           Available_weight__c: scrapReceivedWeight,
           Unit_of_Measure__c: 'Grams',
@@ -1809,7 +1809,7 @@ app.post("/api/casting/update/:date/:month/:year/:number", async (req, res) => {
     const dustInventoryQuery = await conn.query(
       `SELECT Id, Available_weight__c FROM Inventory_ledger__c 
        WHERE Item_Name__c = 'Casting Dust' 
-       AND Purity__c = '91.7'`
+       AND Purity__c = '91.7%'`
     );
 
     if (dustReceivedWeight > 0) {
@@ -3106,7 +3106,7 @@ app.post("/api/grinding/update/:prefix/:date/:month/:year/:number/:subnumber", a
     if (dustReceivedWeight > 0) {
       const dustInventoryQuery = await conn.query(
       `SELECT Id, Available_weight__c ,Purity__c FROM Inventory_ledger__c 
-     WHERE Item_Name__c = 'G Machine Dust' and Purity__c ='91.7'`
+     WHERE Item_Name__c = 'G Machine Dust' and Purity__c ='91.7%'`
       );
 
       if (dustInventoryQuery.records.length > 0) {
@@ -3564,7 +3564,7 @@ app.post("/api/setting/update/:prefix/:date/:month/:year/:number/:subnumber", as
     const dustInventoryQuery = await conn.query(
       `SELECT Id, Available_weight__c FROM Inventory_ledger__c 
        WHERE Item_Name__c = 'Setting Dust' 
-       AND Purity__c = '91.7'`
+       AND Purity__c = '91.7%'`
     );
 
     if (dustReceivedWeight > 0) {
@@ -4134,7 +4134,7 @@ app.post("/api/polishing/update/:prefix/:date/:month/:year/:number/:subnumber", 
     const dustInventoryQuery = await conn.query(
       `SELECT Id, Available_weight__c FROM Inventory_ledger__c 
        WHERE Item_Name__c = 'P Machine Dust' 
-       AND Purity__c = '91.%'`
+       AND Purity__c = '91.7%'`
     );
 
     if (dustReceivedWeight > 0) {
@@ -6727,7 +6727,7 @@ app.post("/api/cutting/update/:prefix/:date/:month/:year/:number/:subnumber", as
     const dustInventoryQuery = await conn.query(
       `SELECT Id, Available_weight__c FROM Inventory_ledger__c 
        WHERE Item_Name__c = 'Cutting Dust' 
-       AND Purity__c = '${cutting.Purity__c || '91.7'}'`
+       AND Purity__c = '${cutting.Purity__c || '91.7%'}'`
     );
 
     if (dustReceivedWeight > 0) {
@@ -6748,7 +6748,7 @@ app.post("/api/cutting/update/:prefix/:date/:month/:year/:number/:subnumber", as
         const dustCreateResult = await conn.sobject('Inventory_ledger__c').create({
           Name: 'Cutting Dust',
           Item_Name__c: 'Cutting Dust',
-          Purity__c: cutting.Purity__c || '91.7',
+          Purity__c: cutting.Purity__c || '91.7%',
           Available_weight__c: dustReceivedWeight,
           Unit_of_Measure__c: 'Grams',
           Last_Updated__c: receivedDate
@@ -6893,7 +6893,7 @@ app.post("/api/cutting/update/:prefix/:date/:month/:year/:number", async (req, r
     const dustInventoryQuery = await conn.query(
       `SELECT Id, Available_weight__c FROM Inventory_ledger__c 
        WHERE Item_Name__c = 'Cutting Dust' 
-       AND Purity__c = '${cutting.Purity__c || '91.7'}'`
+       AND Purity__c = '${cutting.Purity__c || '91.7%'}'`
     );
 
     if (dustReceivedWeight > 0) {
@@ -6914,7 +6914,7 @@ app.post("/api/cutting/update/:prefix/:date/:month/:year/:number", async (req, r
         const dustCreateResult = await conn.sobject('Inventory_ledger__c').create({
           Name: 'Cutting Dust',
           Item_Name__c: 'Cutting Dust',
-          Purity__c: cutting.Purity__c || '91.7',
+          Purity__c: cutting.Purity__c || '91.7%',
           Available_weight__c: dustReceivedWeight,
           Unit_of_Measure__c: 'Grams',
           Last_Updated__c: receivedDate
