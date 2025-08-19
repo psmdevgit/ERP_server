@@ -7748,6 +7748,7 @@ results.push({
 
 // ======================================================================================================================
 
+
 app.get("/api/process-report", async (req, res) => {
   try {
   
@@ -7778,31 +7779,40 @@ app.get("/api/process-report", async (req, res) => {
       let issued = 0, received = 0, loss = 0, scrap = 0, dust = 0,processWt=0;
     
 
-    queryRes.records.forEach(r => {
+//     queryRes.records.forEach(r => {
 
 
-      console.log(p.name+" - "+r[p.fields.received])
+//       console.log(p.name+" - "+r[p.fields.received])
 
-  const issuedVal = parseFloat(r[p.fields.issued] || 0);
-  const receivedVal = parseFloat(r[p.fields.received] || 0);
+//   const issuedVal = parseFloat(r[p.fields.issued] || 0);
+//   const receivedVal = parseFloat(r[p.fields.received] || 0);
 
-  issued += issuedVal;
+//   issued += issuedVal;
 
-  // ✅ Check the actual received value
-  if (receivedVal == 0) {
-    processWt += issuedVal;
-  }
-  else{
-    processWt = 0;
-  }
+//   // ✅ Check the actual received value
+//   if (receivedVal == 0) {
+//     processWt += issuedVal;
+//   }
+//   received += receivedVal;
+// });
 
+queryRes.records.forEach(r => {
+  
+      // console.log(p.name+" - "+r[p.fields.received])
 
+  const issuedRaw = r[p.fields.issued];
+const receivedRaw = r[p.fields.received];
+
+const issuedVal = parseFloat(issuedRaw || 0);
+const receivedVal = receivedRaw ? parseFloat(receivedRaw) : 0;
+
+if (!receivedRaw || receivedVal === 0) {
+  processWt += issuedVal;
+}
 
   received += receivedVal;
-  // loss += parseFloat(r[p.fields.loss] || 0);
-  // scrap += parseFloat(p.fields.scrap ? r[p.fields.scrap] || 0 : 0);
-  // dust += parseFloat(r[p.fields.dust] || 0);
 });
+
 
 
 results.push({
