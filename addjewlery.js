@@ -88,7 +88,8 @@ async function addJewelryModel(conn, data, file) {
       Other_Weight__c: data["other-weight"] ? parseFloat(data["other-weight"]) : null,
       Other_Amount__c: data["other-amount"] ? parseFloat(data["other-amount"]) : null,
       Cad_Path__c: data["cad-path"],
-      Location__c: data["location"],
+      Location__c: data["location"],      
+      submitby__c: data["submitby"],
       
       Image_URL__c: imageUrl  // Store the full distribution URL
     };
