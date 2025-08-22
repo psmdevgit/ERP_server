@@ -7846,7 +7846,7 @@ console.log(results)
 
 // ========================== Preview model =================================================================
 
-// Get models for category
+// Get models for category  with category filter
 app.get("/api/previewModels", async (req, res) => {
   const { categoryId } = req.query;
   if (!categoryId) {
@@ -7866,7 +7866,21 @@ app.get("/api/previewModels", async (req, res) => {
     res.status(500).json({ error: "Failed to fetch models" });
   }
 });
+// Get models for category
+app.get("/api/previewModelsAll", async (req, res) => {
 
+  try {
+    const result = await conn.query(
+      `SELECT Id, Name, Image_URL__c,Category__c, Size__c, Gross_Weight__C, Net_Weight__c, Stone_Weight__c 
+       FROM Jewlery_Model__c 
+       ORDER BY Name`
+    );
+    res.json(result.records);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Failed to fetch models" });
+  }
+});
 
 // ===============================  generate model name ==========================================
 
