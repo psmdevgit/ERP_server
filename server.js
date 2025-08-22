@@ -6,6 +6,8 @@ require("dotenv").config();
 const { addJewelryModel } = require("./addjewlery");
 const chrome = require('@puppeteer/browsers');
 const {submitOrder} = require("./submitOrder");
+
+const {subOrderwithItems} = require("./subOrderwithItems");
 const app = express();
 const storage = multer.memoryStorage();
 const upload = multer({
@@ -643,7 +645,28 @@ app.post('/api/orders', upload.single('pdfFile'), async (req, res) => {
       });
   }
 });
+app.post("/api/orderItems", upload.single('pdfFile'), async (req, res) => {
+    try {
+      const { file } = req;
+    const { data } = req.body;
 
+    const parsedData = JSON.parse(data);
+      const result = await subOrderwithItems(conn, parsedData, file);
+      
+      res.json({
+          success: true,
+          message: 'Order saved successfully',
+          data: result
+      });
+
+  } catch (error) {
+      console.error('Error saving order:', error);
+      res.status(500).json({
+          success: false,
+          message: 'Error saving order',
+          error: error.message
+      });
+  }
 
 async function uploadFileToSalesforce(file) {
   try {
