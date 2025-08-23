@@ -7524,12 +7524,12 @@ app.get("/api/process-summary", async (req, res) => {
       const fieldList = Object.values(p.fields).filter(Boolean).join(", ");
       
       // Add date filter in SOQL
-      const soql = `
-        SELECT ${fieldList}
-        FROM ${p.object}
-        WHERE ${p.dateField} >= ${fromDateTime}
-        AND ${p.dateField} <= ${toDateTime}
-      `;
+    const soql = `
+  SELECT ${fieldList}
+  FROM ${p.object}
+  WHERE ${p.dateField} >= '${fromDateTime}'
+  AND ${p.dateField} <= '${toDateTime}'
+`;
 
       const queryRes = await conn.query(soql);
 
