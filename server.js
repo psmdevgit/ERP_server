@@ -3000,6 +3000,7 @@ app.post("/api/grinding/update/:prefix/:date/:month/:year/:number/:subnumber", a
 
     // Default missing numeric values to 0
     let {
+      issuedWeight=0,
       receivedDate,
       receivedWeight = 0,
       grindingLoss = 0,
@@ -3008,8 +3009,10 @@ app.post("/api/grinding/update/:prefix/:date/:month/:year/:number/:subnumber", a
       ornamentWeight = 0,
       pouches = []
     } = req.body;
+console.log("[Grinding Update editor ] Raw body:", req.body);
 
     // Ensure numeric values
+    issuedWeight = Number(issuedWeight) || 0;
     receivedWeight = Number(receivedWeight) || 0;
     grindingLoss = Number(grindingLoss) || 0;
     scrapReceivedWeight = Number(scrapReceivedWeight) || 0;
@@ -3019,6 +3022,7 @@ app.post("/api/grinding/update/:prefix/:date/:month/:year/:number/:subnumber", a
     const grindingNumber = `${prefix}/${date}/${month}/${year}/${number}/${subnumber}`;
 
     console.log("[Grinding Update] Received data:", {
+      issuedWeight,
       grindingNumber,
       receivedDate,
       receivedWeight,
@@ -3030,9 +3034,10 @@ app.post("/api/grinding/update/:prefix/:date/:month/:year/:number/:subnumber", a
     });
 
     /** ---- 1. Get Grinding Record ---- **/
-    const grindingQuery = await conn.query(
-       `SELECT Id, Name FROM Grinding__c WHERE Name = '${grindingNumber}'`
-    );
+  const grindingQuery = await conn.query(
+   `SELECT Id, Name  FROM Grinding__c WHERE Name = '${grindingNumber}'`
+);
+
 
     if (!grindingQuery.records || grindingQuery.records.length === 0) {
       return res.status(404).json({
@@ -3046,6 +3051,7 @@ app.post("/api/grinding/update/:prefix/:date/:month/:year/:number/:subnumber", a
     /** ---- 2. Update Grinding Record ---- **/
     const updateData = {
       Id: grinding.Id,
+      issued_Weight__c: issuedWeight,
       Received_Date__c: receivedDate,
       Received_Weight__c: receivedWeight,
       Grinding_loss__c: grindingLoss,
@@ -3067,6 +3073,7 @@ app.post("/api/grinding/update/:prefix/:date/:month/:year/:number/:subnumber", a
         try {
           const pouchUpdateResult = await conn.sobject("Pouch__c").update({
             Id: pouch.pouchId,
+            
             Received_Weight_Grinding__c: Number(pouch.receivedWeight) || 0,
             Grinding_Loss__c: grindingLoss
           });
@@ -3190,6 +3197,7 @@ app.post("/api/grinding/update/:prefix/:date/:month/:year/:number/:subnumber", a
     });
   }
 });
+
 
 
 /**----------------- Update Inventory Weights for Casting ----------------- **/
