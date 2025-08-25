@@ -7909,7 +7909,7 @@ app.get("/api/previewModels", async (req, res) => {
 
   try {
     const result = await conn.query(
-      `SELECT Id, Name, Image_URL__c 
+      `SELECT Id, Name, Image_URL__c,Category__c, Size__c, Gross_Weight__C, Net_Weight__c, Stone_Weight__c
        FROM Jewlery_Model__c 
        WHERE Category__c = '${categoryId}'
        ORDER BY Name`
