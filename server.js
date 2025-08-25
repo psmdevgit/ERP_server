@@ -691,6 +691,7 @@ app.post("/api/orderItems", upload.single('pdfFile'), async (req, res) => {
           error: error.message
       });
   }
+});
   
 async function uploadFileToSalesforce(file) {
   try {
