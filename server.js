@@ -1390,19 +1390,19 @@ app.get("/get-inventory", async (req, res) => {
     }
 
     // Format the response data
-    // const inventoryItems = result.records.map(item => ({
-    //   name: item.Item_Name__c,
-    //   availableWeight: item.Available_weight__c,
-    //   purity: item.Purity__c
-    // }));
+    const inventoryItems = result.records.map(item => ({
+      name: item.Item_Name__c,
+      availableWeight: item.Available_weight__c,
+      purity: item.Purity__c
+    }));
 
-       const inventoryItems = result.records
-  .filter(item => item.Item_Name__c?.trim().toLowerCase() !== "alloy")
-  .map(item => ({
-    name: item.Item_Name__c,
-    availableWeight: item.Available_weight__c,
-    purity: item.Purity__c
-  }));
+  //      const inventoryItems = result.records
+  // .filter(item => item.Item_Name__c?.trim().toLowerCase() !== "alloy")
+  // .map(item => ({
+  //   name: item.Item_Name__c,
+  //   availableWeight: item.Available_weight__c,
+  //   purity: item.Purity__c
+  // }));
 
     res.status(200).json({
       success: true,
