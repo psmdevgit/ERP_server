@@ -1,5 +1,10 @@
-async function subOrderwithItems(conn, orderData, pdfFile) {
+async function subOrderwithItems(conn, orderData,designPDFurl, detailedPdfUrl, pdfFile) {
     try {
+
+        console.log("image : ",designPDFurl);        
+        console.log("detailed : ",detailedPdfUrl);
+        console.log("order pdf:",pdfFile);
+
         // Find Party Ledger first
         const partyLedgerQuery = await conn.query(
             `SELECT Id FROM Party_Ledger__c WHERE Party_Code__c = '${orderData.orderInfo.partyCode}' LIMIT 1`
@@ -57,6 +62,8 @@ async function subOrderwithItems(conn, orderData, pdfFile) {
             }
         }
 
+        console.log("opdf url :",pdfUrl);
+
         // Create order record
         const orderRecord = {
             Name: orderData.orderInfo.orderNo,
@@ -94,8 +101,9 @@ async function subOrderwithItems(conn, orderData, pdfFile) {
                 Net_Weight__c: item.netWeight,
                 Stone_Weight__c: item.stoneWeight,
                 Gross_Weight__c: item.grossWeight,
-                Remarks__c: item.remarks,
-                Order_Image_sheet__c: item.designImage,
+                Remarks__c: item.itemRemark,
+                Order_Image_sheet__c: designPDFurl,
+                Order_sheet__c: detailedPdfUrl,
                 Order__c: orderResult.id
             }));
 
