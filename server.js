@@ -646,52 +646,116 @@ app.post('/api/orders', upload.single('pdfFile'), async (req, res) => {
   }
 });
 app.post("/api/orderItems", upload.single('pdfFile'), async (req, res) => {
-    try {
-      const { file } = req;
-    const { data } = req.body;
+  try {
+    const { file } = req;
+    const { data, imagesPdf ,detailedPdf } = req.body;
+    const parsedData = JSON.parse(data);    
 
-    const parsedData = JSON.parse(data);
-      const result = await subOrderwithItems(conn, parsedData, file);
-      
-      res.json({
-          success: true,
-          message: 'Order saved successfully',
-          data: result
-      });
+console.log("imagepdf :",imagesPdf);
+
+console.log("detailedpdf :",detailedPdf);
+    
+    // Handle PDF creation for either type
+     const createContentDistribution = async (contentVersionId, title) => {
+      try {
+        const contentDistribution = await conn.sobject('ContentDistribution').create({
+          Name: title,
+          ContentVersionId: contentVersionId,
+          PreferencesAllowViewInBrowser: true,
+          PreferencesLinkLatestVersion: true,
+          PreferencesNotifyOnVisit: false,
+          PreferencesPasswordRequired: false,
+          PreferencesAllowOriginalDownload: true
+        });
+
+        const distributionQuery = await conn.query(
+          `SELECT DistributionPublicUrl FROM ContentDistribution WHERE Id = '${contentDistribution.id}'`
+        );
+
+        return distributionQuery.records[0].DistributionPublicUrl;
+      } catch (error) {
+        console.error('Error creating content distribution:', error);
+        throw error;
+      }
+    };
+
+    const createPDFs = async () => {
+      try {
+        const suffix = "Order";
+        const orderId = parsedData.orderInfo.orderNo;
+
+        console.log("order id", orderId);
+
+        if (!imagesPdf) {
+          throw new Error("imagesPdf is missing in request");
+        }
+
+        if (!detailedPdf) {
+          throw new Error("detailedPdf is missing in request");
+        }
+
+        // ✅ Upload base64 to Salesforce
+        const imagePdfResponse = await conn.sobject('ContentVersion').create({
+          Title: `Order_${orderId}_${suffix}Images.pdf`,
+          PathOnClient: `Order_${orderId}_${suffix}Images.pdf`,
+          VersionData: imagesPdf // ✅ Correctly sending base64 PDF
+        });
+
+        const detailedPdfResponse = await conn.sobject('ContentVersion').create({
+          Title: `Order_${orderId}_${suffix}Detailed.pdf`,
+          PathOnClient: `Order_${orderId}_${suffix}Detailed.pdf`,
+          VersionData: detailedPdf
+        });
+
+
+         const detailedPdfUrl = await createContentDistribution(
+          detailedPdfResponse.id,
+          `Order_${orderId}_${suffix}Detailed.pdf`
+        );
+
+
+       const imagePdfUrl = await createContentDistribution(
+          imagePdfResponse.id, // ✅ Correct variable name
+          `Order_${orderId}_${suffix}Images.pdf`
+        );
+
+        return { imagePdfUrl, detailedPdfUrl };
+      } catch (error) {
+        console.error('Error creating Image PDFs:', error);
+        throw error;
+      }
+    };
+
+
+// ✅ Call it ONCE
+const { imagePdfUrl, detailedPdfUrl } = await createPDFs();
+
+    console.log("image pdf URL:", imagePdfUrl);
+    console.log("detailed pdf URL:", detailedPdfUrl);
+
+    console.log(file);
+    console.log(parsedData);
+
+    // ✅ Pass the actual URL
+    const result = await subOrderwithItems(conn, parsedData, imagePdfUrl, detailedPdfUrl, file);
+
+    res.json({
+      success: true,
+      message: 'Order saved successfully',
+      data: result
+    });
 
   } catch (error) {
-      console.error('Error saving order:', error);
-      res.status(500).json({
-          success: false,
-          message: 'Error saving order',
-          error: error.message
-      });
+    console.error('Error saving order:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error saving order',
+      error: error.message
+    });
   }
 });
+
   
-app.post("/api/orderItems", upload.single('pdfFile'), async (req, res) => {
-    try {
-      const { file } = req;
-    const { data } = req.body;
-
-    const parsedData = JSON.parse(data);
-      const result = await subOrderwithItems(conn, parsedData, file);
-      
-      res.json({
-          success: true,
-          message: 'Order saved successfully',
-          data: result
-      });
-
-  } catch (error) {
-      console.error('Error saving order:', error);
-      res.status(500).json({
-          success: false,
-          message: 'Error saving order',
-          error: error.message
-      });
-  }
-});
   
 async function uploadFileToSalesforce(file) {
   try {
@@ -7978,3 +8042,32 @@ app.post("/generate-model-name", async (req, res) => {
     res.status(500).json({ success: false, message: err.message });
   }
 });
+
+// ========================================================================================================================================================
+
+app.get("/getimage", async (req, res) => {
+  const { fileUrl } = req.query;
+  if (!fileUrl) {
+    return res.status(400).json({ error: "fileUrl query param is required" });
+  }
+
+  try {
+    const response = await axios.get(fileUrl, {
+      responseType: "arraybuffer",
+      headers: {
+        Authorization: `Bearer ${process.env.SALESFORCE_ACCESS_TOKEN}`,
+      },
+    });
+
+    // Detect image type (optional)
+    const contentType =
+      response.headers["content-type"] || "image/jpeg";
+    res.setHeader("Content-Type", contentType);
+    res.send(response.data);
+  } catch (error) {
+    console.error("Error fetching image:", error.message);
+    res.status(500).json({ error: "Failed to fetch image" });
+  }
+});
+
+
