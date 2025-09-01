@@ -3084,24 +3084,25 @@ app.post("/api/grinding/update/:prefix/:date/:month/:year/:number/:subnumber", a
     const { prefix, date, month, year, number, subnumber } = req.params;
 
     // Default missing numeric values to 0
-    let {
-      issuedWeight=0,
-      receivedDate,
-      receivedWeight = 0,
-      grindingLoss = 0,
-      scrapReceivedWeight = 0,
-      dustReceivedWeight = 0,
-      ornamentWeight = 0,
-      pouches = []
-    } = req.body;
+   let {
+  issuedWeight=0,
+  receivedDate,
+  receivedWeight=0,
+  grindingLoss=0,
+  ornamentWeight=0,
+  pouches=[]
+} = req.body;
+
+let scrapReceivedWeight = Number(req.body.scrapReceivedWeight || req.body.scrapWeight || 0);
+let dustReceivedWeight  = Number(req.body.dustReceivedWeight  || req.body.dustWeight  || 0);
 console.log("[Grinding Update editor ] Raw body:", req.body);
 
     // Ensure numeric values
     issuedWeight = Number(issuedWeight) || 0;
     receivedWeight = Number(receivedWeight) || 0;
     grindingLoss = Number(grindingLoss) || 0;
-    scrapReceivedWeight = Number(scrapReceivedWeight) || 0;
-    dustReceivedWeight = Number(dustReceivedWeight) || 0;
+    scrapReceivedWeight = Number(scrapReceivedWeight)  || 0;
+    dustReceivedWeight = Number(dustReceivedWeight)|| 0;
     ornamentWeight = Number(ornamentWeight) || 0;
 
     const grindingNumber = `${prefix}/${date}/${month}/${year}/${number}/${subnumber}`;
