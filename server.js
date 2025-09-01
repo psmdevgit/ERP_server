@@ -1328,21 +1328,22 @@ app.post("/api/update-order-status", async (req, res) => {
 });
 
 
+
 /**------------------- Inventory Management-------------------- **/
 
 app.post("/update-inventory", async (req, res) => {
   try {
-    const { itemName, purity, availableWeight, unitOfMeasure } = req.body;
+    const { itemName, purity, availableWeight, unitOfMeasure, partyLedger } = req.body;
     
     console.log('Received inventory update request:', {
       itemName,
       purity,
       availableWeight,
-      unitOfMeasure
+      unitOfMeasure,partyLedger
     });
 
     // Validate required fields
-    if (!itemName || !purity || !availableWeight || !unitOfMeasure) {
+    if (!itemName || !purity || !availableWeight || !unitOfMeasure || !partyLedger) {
       console.log('Validation failed - missing required fields');
       return res.status(400).json({
         success: false,
@@ -1381,7 +1382,8 @@ app.post("/update-inventory", async (req, res) => {
         Id: existingItem.records[0].Id,
         Available_weight__c: newTotalWeight,  // Fixed field name
         Unit_of_Measure__c: unitOfMeasure,
-        Last_Updated__c: new Date().toISOString()
+        Last_Updated__c: new Date().toISOString(),
+        PartyLedger__c: partyLedger
       });
     } else {
       // Create new record
@@ -1392,7 +1394,8 @@ app.post("/update-inventory", async (req, res) => {
         Purity__c: purity,
         Available_weight__c: parseFloat(availableWeight),  // Fixed field name
         Unit_of_Measure__c: unitOfMeasure,
-        Last_Updated__c: new Date().toISOString()
+        Last_Updated__c: new Date().toISOString(),
+        PartyLedger__c: partyLedger
       });
     }
 
