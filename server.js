@@ -1342,8 +1342,8 @@ app.post("/update-inventory", async (req, res) => {
       unitOfMeasure,partyLedger
     });
 
-    // Validate required fields
-    if (!itemName || !purity || !availableWeight || !unitOfMeasure || !partyLedger) {
+    // Validate required fields  || !unitOfMeasure || !partyLedger
+    if (!itemName || !purity || !availableWeight) {
       console.log('Validation failed - missing required fields');
       return res.status(400).json({
         success: false,
