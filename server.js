@@ -2432,7 +2432,7 @@ app.get("/api/filing/:prefix/:date/:month/:year/:number/:numb", async (req, res)
 app.post("/api/filing/update/:prefix/:date/:month/:year/:number/:numb", async (req, res) => {
   try {
     const { prefix, date, month, year, number,numb } = req.params;
-    const { receivedDate, receivedWeight, grindingLoss, scrapReceivedWeight, dustReceivedWeight, ornamentWeight, pouches } = req.body;
+    const { receivedDate, receivedWeight, grindingLoss,findingReceived, scrapReceivedWeight, dustReceivedWeight, ornamentWeight, pouches } = req.body;
     const filingNumber = `${prefix}/${date}/${month}/${year}/${number}/${numb}`;
 
     // Format the received date to Salesforce format
@@ -3577,14 +3577,14 @@ app.get("/api/setting-details/:prefix/:date/:month/:year/:number/:subm", async (
 app.post("/api/setting/update/:prefix/:date/:month/:year/:number/:subnumber", async (req, res) => {
   try {
     const { prefix, date, month, year, number, subnumber } = req.params;
-    const { receivedDate, receivedWeight, settingLoss, scrapReceivedWeight, dustReceivedWeight, totalStoneWeight, ornamentWeight, pouches } = req.body;
+    const { receivedDate, receivedWeight, settingLoss,findingReceived, scrapReceivedWeight, dustReceivedWeight, totalStoneWeight, ornamentWeight, pouches } = req.body;
     const settingNumber = `${prefix}/${date}/${month}/${year}/${number}/${subnumber}`;
 
     console.log('[Setting Update] Received data:', { 
       settingNumber, 
       receivedDate, 
       receivedWeight, 
-      settingLoss,
+      settingLoss,findingReceived,
       scrapReceivedWeight,
       dustReceivedWeight,
       ornamentWeight,
@@ -3606,7 +3606,7 @@ app.post("/api/setting/update/:prefix/:date/:month/:year/:number/:subnumber", as
     const setting = settingQuery.records[0];
 
     // Update the setting record
-    const updateData = {
+     const updateData = {
       Id: setting.Id,
       Received_Date__c: receivedDate,
       Returned_weight__c: receivedWeight,
@@ -3614,6 +3614,7 @@ app.post("/api/setting/update/:prefix/:date/:month/:year/:number/:subnumber", as
       Stone_Weight__c: totalStoneWeight,
       Setting_Scrap_Weight__c: scrapReceivedWeight,
       Setting_Dust_Weight__c: dustReceivedWeight,
+      Setting_Finding_Weight__c: findingReceived,
       Setting_Ornament_Weight__c: ornamentWeight,
       Status__c: 'Finished'
     };
