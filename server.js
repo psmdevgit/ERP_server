@@ -6577,7 +6577,7 @@ app.post("/api/cutting/create", async (req, res) => {
 app.post("/api/plating/update/:prefix/:date/:month/:year/:number/:subnumber", async (req, res) => {
   try {
     const { prefix, date, month, year, number, subnumber } = req.params;
-    const { receivedDate, receivedWeight, platingLoss, scrapReceivedWeight, dustReceivedWeight, ornamentWeight, pouches } = req.body;
+    const { receivedDate, receivedWeight, platingLoss,findingReceived, scrapReceivedWeight, dustReceivedWeight, ornamentWeight, pouches } = req.body;
     const platingNumber = `${prefix}/${date}/${month}/${year}/${number}/${subnumber}`;
 
     console.log('[Plating Update] Received data:', { 
@@ -6588,6 +6588,7 @@ app.post("/api/plating/update/:prefix/:date/:month/:year/:number/:subnumber", as
       scrapReceivedWeight,
       dustReceivedWeight,
       ornamentWeight,
+      findingReceived,
       pouches 
     });
 
@@ -6613,7 +6614,8 @@ app.post("/api/plating/update/:prefix/:date/:month/:year/:number/:subnumber", as
       Plating_Loss__c: platingLoss,
       Plating_Scrap_Weight__c: scrapReceivedWeight,
       Plating_Dust_Weight__c: dustReceivedWeight,
-      Plating_Ornament_Weight__c: ornamentWeight,
+      Plating_Ornament_Weight__c: ornamentWeight,      
+      Plating_Finding_Weight__c: findingReceived,
       Status__c: 'Finished'
     };
 
