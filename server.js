@@ -2453,7 +2453,7 @@ app.post("/api/filing/update/:prefix/:date/:month/:year/:number/:numb", async (r
     const filing = filingQuery.records[0];
 
     // Update the filing record
-    const updateData = {
+     const updateData = {
       Id: filing.Id,
       Received_Date__c: formattedDate,
       Receievd_weight__c: receivedWeight,
@@ -2461,6 +2461,7 @@ app.post("/api/filing/update/:prefix/:date/:month/:year/:number/:numb", async (r
       Filing_Scrap_Weight__c: scrapReceivedWeight,
       Filing_Dust_Weight__c: dustReceivedWeight,
       Filing_Ornament_Weight__c: ornamentWeight,
+      Filing_Finding_Weight__c: findingReceived,
       Status__c: 'Finished'
     };
 
