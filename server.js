@@ -7,7 +7,7 @@ const { addJewelryModel } = require("./addjewlery");
 const chrome = require('@puppeteer/browsers');
 const {submitOrder} = require("./submitOrder");
 
-const {subOrderwithItems} = require("./subOrderwithItems");
+const {subOrderwithItems} = require("./subOrderwithItems");cutt
 const app = express();
 const storage = multer.memoryStorage();
 const upload = multer({
@@ -6748,16 +6748,17 @@ app.post("/api/plating/update/:prefix/:date/:month/:year/:number/:subnumber", as
 app.post("/api/cutting/update/:prefix/:date/:month/:year/:number/:subnumber", async (req, res) => {
   try {
     const { prefix, date, month, year, number, subnumber } = req.params;
-    const { receivedDate, receivedWeight, cuttingLoss, scrapReceivedWeight, dustReceivedWeight, ornamentWeight, pouches } = req.body;
+    const { receivedDate, receivedWeight, cuttingLoss,findingReceived, scrapReceivedWeight, dustReceivedWeight, ornamentWeight, pouches } = req.body;
     const cuttingNumber = `${prefix}/${date}/${month}/${year}/${number}/${subnumber}`;
 
-    console.log('[Cutting Update] Received data:', { 
+ console.log('[Cutting Update] Received data:', { 
       cuttingNumber, 
       receivedDate, 
       receivedWeight, 
       cuttingLoss,
       scrapReceivedWeight,
       dustReceivedWeight,
+      findingReceived,
       ornamentWeight,
       pouches 
     });
@@ -6777,13 +6778,14 @@ app.post("/api/cutting/update/:prefix/:date/:month/:year/:number/:subnumber", as
     const cutting = cuttingQuery.records[0];
 
     // Update the cutting record
-    const updateData = {
+  const updateData = {
       Id: cutting.Id,
       Received_Date__c: receivedDate,
       Returned_Weight__c: receivedWeight,
       Cutting_Loss__c: cuttingLoss,
       Cutting_Scrap_Weight__c: scrapReceivedWeight,
       Cutting_Dust_Weight__c: dustReceivedWeight,
+      Cutting_Finding_Weight__c: findingReceived,
       Cutting_Ornament_Weight__c: ornamentWeight,
       Status__c: 'Finished'
     };
