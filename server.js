@@ -4153,7 +4153,7 @@ app.get("/api/polishing/:prefix/:date/:month/:year/:number/:subnumber/pouches", 
 app.post("/api/polishing/update/:prefix/:date/:month/:year/:number/:subnumber", async (req, res) => {
   try {
     const { prefix, date, month, year, number,subnumber } = req.params;
-    const { receivedDate, receivedWeight, polishingLoss, scrapReceivedWeight, dustReceivedWeight, ornamentWeight, pouches } = req.body;
+    const { receivedDate, receivedWeight, polishingLoss,findingReceived, scrapReceivedWeight, dustReceivedWeight, ornamentWeight, pouches } = req.body;
     const polishingNumber = `${prefix}/${date}/${month}/${year}/${number}/${subnumber}`;
 
     console.log('[Polishing Update] Received data:', { 
@@ -4186,6 +4186,7 @@ app.post("/api/polishing/update/:prefix/:date/:month/:year/:number/:subnumber", 
       Polishing_loss__c: polishingLoss,
       Polishing_Scrap_Weight__c: scrapReceivedWeight,
       Polishing_Dust_Weight__c: dustReceivedWeight,
+      Polishing_Finding_Weight__c: findingReceived,
       Polishing_Ornament_Weight__c: ornamentWeight,
       Status__c: 'Finished'
     };
