@@ -4683,14 +4683,15 @@ app.get("/api/dull/:prefix/:date/:month/:year/:number/:subnumber/pouches", async
 app.post("/api/dull/update/:prefix/:date/:month/:year/:number/:subnumber", async (req, res) => {
   try {
     const { prefix, date, month, year, number, subnumber } = req.params;
-    const { receivedDate, receivedWeight, dullLoss, scrapReceivedWeight, dustReceivedWeight, ornamentWeight, pouches } = req.body;
+    const { receivedDate, receivedWeight, dullLoss,findingReceived,  scrapReceivedWeight, dustReceivedWeight, ornamentWeight, pouches } = req.body;
     const dullNumber = `${prefix}/${date}/${month}/${year}/${number}/${subnumber}`;
 
-    console.log('[Dull Update] Received data:', { 
+  console.log('[Dull Update] Received data:', { 
       dullNumber, 
       receivedDate, 
       receivedWeight, 
       dullLoss,
+      findingReceived,
       scrapReceivedWeight,
       dustReceivedWeight,
       ornamentWeight,
@@ -4712,7 +4713,7 @@ app.post("/api/dull/update/:prefix/:date/:month/:year/:number/:subnumber", async
     const dull = dullQuery.records[0];
 
     // Update the dull record
-    const updateData = {
+   const updateData = {
       Id: dull.Id,
       Received_Date__c: receivedDate,
       Returned_weight__c: receivedWeight,
@@ -4720,6 +4721,7 @@ app.post("/api/dull/update/:prefix/:date/:month/:year/:number/:subnumber", async
       Dull_Scrap_Weight__c: scrapReceivedWeight,
       Dull_Dust_Weight__c: dustReceivedWeight,
       Dull_Ornament_Weight__c: ornamentWeight,
+      Dull_Finding_Weight__c: findingReceived,
       Status__c: 'Finished'
     };
 
