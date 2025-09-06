@@ -4862,10 +4862,10 @@ app.get("/api/dull/:prefix/:date/:month/:year/:number/:subnumber/pouches", async
 app.post("/api/dull/update/:prefix/:date/:month/:year/:number/:subnumber", async (req, res) => {
   try {
     const { prefix, date, month, year, number, subnumber } = req.params;
-    const { receivedDate, receivedWeight, dullLoss,findingReceived,  scrapReceivedWeight, dustReceivedWeight, ornamentWeight, pouches } = req.body;
+    const { receivedDate, receivedWeight, dullLoss,findingReceived, scrapReceivedWeight, dustReceivedWeight, ornamentWeight, pouches } = req.body;
     const dullNumber = `${prefix}/${date}/${month}/${year}/${number}/${subnumber}`;
 
-  console.log('[Dull Update] Received data:', { 
+    console.log('[Dull Update] Received data:', { 
       dullNumber, 
       receivedDate, 
       receivedWeight, 
@@ -4892,7 +4892,7 @@ app.post("/api/dull/update/:prefix/:date/:month/:year/:number/:subnumber", async
     const dull = dullQuery.records[0];
 
     // Update the dull record
-   const updateData = {
+    const updateData = {
       Id: dull.Id,
       Received_Date__c: receivedDate,
       Returned_weight__c: receivedWeight,
@@ -4924,6 +4924,47 @@ app.post("/api/dull/update/:prefix/:date/:month/:year/:number/:subnumber", async
         } catch (pouchError) {
           console.error(`[Dull Update] Failed to update pouch ${pouch.pouchId}:`, pouchError);
           throw pouchError;
+        }
+      }
+    }
+
+    // Check if finding inventory exists for this purity
+
+ if (findingReceived > 0) {
+      const findingInventoryQuery = await conn.query(
+        `SELECT Id, Available_weight__c FROM Inventory_ledger__c 
+       WHERE Item_Name__c = 'Finding' 
+      AND Purity__c = '91.7%'`
+      );
+
+      if (findingInventoryQuery.records.length > 0) {
+        const currentWeight =
+          findingInventoryQuery.records[0].Available_weight__c || 0;
+        const findingUpdateResult = await conn
+          .sobject("Inventory_ledger__c")
+          .update({
+            Id: findingInventoryQuery.records[0].Id,
+            Available_weight__c: currentWeight + findingReceived,
+            Last_Updated__c: receivedDate
+          });
+
+        if (!findingUpdateResult.success) {
+          throw new Error("Failed to update scrap inventory");
+        }
+      } else {;;
+        const findingCreateResult = await conn
+          .sobject("Inventory_ledger__c")
+          .create({
+            Name: "Finding",
+            Item_Name__c: "Finding",
+            Purity__c: grinding.Purity__c,
+            Available_weight__c: findingReceived,
+            Unit_of_Measure__c: "Grams",
+            Last_Updated__c: receivedDate
+          });
+
+        if (!findingCreateResult.success) {
+          throw new Error("Failed to create scrap inventory");
         }
       }
     }
@@ -5026,7 +5067,6 @@ app.post("/api/dull/update/:prefix/:date/:month/:year/:number/:subnumber", async
     });
   }
 });
-
 /**-----------------Get all Dull Details ----------------- */
 app.get("/api/dull-details/:prefix/:date/:month/:year/:number", async (req, res) => {
   try {
