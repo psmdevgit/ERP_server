@@ -7013,14 +7013,14 @@ app.post("/api/cutting/update/:prefix/:date/:month/:year/:number/:subnumber", as
     const { receivedDate, receivedWeight, cuttingLoss,findingReceived, scrapReceivedWeight, dustReceivedWeight, ornamentWeight, pouches } = req.body;
     const cuttingNumber = `${prefix}/${date}/${month}/${year}/${number}/${subnumber}`;
 
- console.log('[Cutting Update] Received data:', { 
+    console.log('[Cutting Update] Received data:', { 
       cuttingNumber, 
       receivedDate, 
       receivedWeight, 
       cuttingLoss,
+      findingReceived,
       scrapReceivedWeight,
       dustReceivedWeight,
-      findingReceived,
       ornamentWeight,
       pouches 
     });
@@ -7040,7 +7040,7 @@ app.post("/api/cutting/update/:prefix/:date/:month/:year/:number/:subnumber", as
     const cutting = cuttingQuery.records[0];
 
     // Update the cutting record
-  const updateData = {
+    const updateData = {
       Id: cutting.Id,
       Received_Date__c: receivedDate,
       Returned_Weight__c: receivedWeight,
@@ -7074,8 +7074,49 @@ app.post("/api/cutting/update/:prefix/:date/:month/:year/:number/:subnumber", as
           throw pouchError;
         }
       }
-    }
+    } 
 
+    // Check if finding inventory exists for this purity
+    
+ if (findingReceived > 0) {
+      const findingInventoryQuery = await conn.query(
+        `SELECT Id, Available_weight__c FROM Inventory_ledger__c 
+       WHERE Item_Name__c = 'Finding' 
+      AND Purity__c = '91.7%'`
+      );
+
+      if (findingInventoryQuery.records.length > 0) {
+        const currentWeight =
+          findingInventoryQuery.records[0].Available_weight__c || 0;
+        const findingUpdateResult = await conn
+          .sobject("Inventory_ledger__c")
+          .update({
+            Id: findingInventoryQuery.records[0].Id,
+            Available_weight__c: currentWeight + findingReceived,
+            Last_Updated__c: receivedDate
+          });
+
+        if (!findingUpdateResult.success) {
+          throw new Error("Failed to update scrap inventory");
+        }
+      } else {;;
+        const findingCreateResult = await conn
+          .sobject("Inventory_ledger__c")
+          .create({
+            Name: "Finding",
+            Item_Name__c: "Finding",
+            Purity__c: grinding.Purity__c,
+            Available_weight__c: findingReceived,
+            Unit_of_Measure__c: "Grams",
+            Last_Updated__c: receivedDate
+          });
+
+        if (!findingCreateResult.success) {
+          throw new Error("Failed to create scrap inventory");
+        }
+      }
+    }
+    
     // Check if scrap inventory exists for this purity
     const scrapInventoryQuery = await conn.query(
       `SELECT Id, Available_weight__c FROM Inventory_ledger__c 
@@ -7174,11 +7215,10 @@ app.post("/api/cutting/update/:prefix/:date/:month/:year/:number/:subnumber", as
     });
   }
 });
-
 app.post("/api/cutting/update/:prefix/:date/:month/:year/:number", async (req, res) => {
   try {
     const { prefix, date, month, year, number } = req.params;
-    const { receivedDate, receivedWeight, cuttingLoss, scrapReceivedWeight, dustReceivedWeight, ornamentWeight, pouches } = req.body;
+    const { receivedDate, receivedWeight, cuttingLoss,findingReceived, scrapReceivedWeight, dustReceivedWeight, ornamentWeight, pouches } = req.body;
     const cuttingNumber = `${prefix}/${date}/${month}/${year}/${number}`;
 
     console.log('[Cutting Update] Received data:', { 
@@ -7188,6 +7228,7 @@ app.post("/api/cutting/update/:prefix/:date/:month/:year/:number", async (req, r
       cuttingLoss,
       scrapReceivedWeight,
       dustReceivedWeight,
+      findingReceived,
       ornamentWeight,
       pouches 
     });
@@ -7214,6 +7255,7 @@ app.post("/api/cutting/update/:prefix/:date/:month/:year/:number", async (req, r
       Cutting_Loss__c: cuttingLoss,
       Cutting_Scrap_Weight__c: scrapReceivedWeight,
       Cutting_Dust_Weight__c: dustReceivedWeight,
+      Cutting_Finding_Weight__c: findingReceived,
       Cutting_Ornament_Weight__c: ornamentWeight,
       Status__c: 'Finished'
     };
@@ -7241,6 +7283,49 @@ app.post("/api/cutting/update/:prefix/:date/:month/:year/:number", async (req, r
         }
       }
     }
+    
+    // Check if finding inventory exists for this purity
+
+    
+ if (findingReceived > 0) {
+      const findingInventoryQuery = await conn.query(
+        `SELECT Id, Available_weight__c FROM Inventory_ledger__c 
+       WHERE Item_Name__c = 'Finding' 
+      AND Purity__c = '91.7%'`
+      );
+
+      if (findingInventoryQuery.records.length > 0) {
+        const currentWeight =
+          findingInventoryQuery.records[0].Available_weight__c || 0;
+        const findingUpdateResult = await conn
+          .sobject("Inventory_ledger__c")
+          .update({
+            Id: findingInventoryQuery.records[0].Id,
+            Available_weight__c: currentWeight + findingReceived,
+            Last_Updated__c: receivedDate
+          });
+
+        if (!findingUpdateResult.success) {
+          throw new Error("Failed to update scrap inventory");
+        }
+      } else {;;
+        const findingCreateResult = await conn
+          .sobject("Inventory_ledger__c")
+          .create({
+            Name: "Finding",
+            Item_Name__c: "Finding",
+            Purity__c: grinding.Purity__c,
+            Available_weight__c: findingReceived,
+            Unit_of_Measure__c: "Grams",
+            Last_Updated__c: receivedDate
+          });
+
+        if (!findingCreateResult.success) {
+          throw new Error("Failed to create scrap inventory");
+        }
+      }
+    }
+
 
     // Check if scrap inventory exists for this purity
     const scrapInventoryQuery = await conn.query(
