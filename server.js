@@ -3698,7 +3698,7 @@ app.post("/api/setting/update/:prefix/:date/:month/:year/:number/:subnumber", as
     const setting = settingQuery.records[0];
 
     // Update the setting record
-     const updateData = {
+    const updateData = {
       Id: setting.Id,
       Received_Date__c: receivedDate,
       Returned_weight__c: receivedWeight,
@@ -3735,6 +3735,51 @@ app.post("/api/setting/update/:prefix/:date/:month/:year/:number/:subnumber", as
         }
       }
     }
+   
+    // Check if finding inventory exists for this purity
+
+    
+ if (findingReceived > 0) {
+      const findingInventoryQuery = await conn.query(
+        `SELECT Id, Available_weight__c FROM Inventory_ledger__c 
+       WHERE Item_Name__c = 'Finding' 
+      AND Purity__c = '91.7%'`
+      );
+
+      if (findingInventoryQuery.records.length > 0) {
+        const currentWeight =
+          findingInventoryQuery.records[0].Available_weight__c || 0;
+        const findingUpdateResult = await conn
+          .sobject("Inventory_ledger__c")
+          .update({
+            Id: findingInventoryQuery.records[0].Id,
+            Available_weight__c: currentWeight + findingReceived,
+            Last_Updated__c: receivedDate
+          });
+
+        if (!findingUpdateResult.success) {
+          throw new Error("Failed to update scrap inventory");
+        }
+      } else {;;
+        const findingCreateResult = await conn
+          .sobject("Inventory_ledger__c")
+          .create({
+            Name: "Finding",
+            Item_Name__c: "Finding",
+            Purity__c: grinding.Purity__c,
+            Available_weight__c: findingReceived,
+            Unit_of_Measure__c: "Grams",
+            Last_Updated__c: receivedDate
+          });
+
+        if (!findingCreateResult.success) {
+          throw new Error("Failed to create scrap inventory");
+        }
+      }
+    }
+
+
+
 
     // Check if scrap inventory exists for this purity
     const scrapInventoryQuery = await conn.query(
