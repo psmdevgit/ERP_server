@@ -2435,6 +2435,10 @@ app.post("/api/filing/update/:prefix/:date/:month/:year/:number/:numb", async (r
     const { receivedDate, receivedWeight, grindingLoss,findingReceived, scrapReceivedWeight, dustReceivedWeight, ornamentWeight, pouches } = req.body;
     const filingNumber = `${prefix}/${date}/${month}/${year}/${number}/${numb}`;
 
+
+    console.log(findingReceived);
+
+
     // Format the received date to Salesforce format
     const formattedDate = new Date(receivedDate).toISOString();
 
@@ -2453,7 +2457,7 @@ app.post("/api/filing/update/:prefix/:date/:month/:year/:number/:numb", async (r
     const filing = filingQuery.records[0];
 
     // Update the filing record
-     const updateData = {
+    const updateData = {
       Id: filing.Id,
       Received_Date__c: formattedDate,
       Receievd_weight__c: receivedWeight,
@@ -2488,6 +2492,53 @@ app.post("/api/filing/update/:prefix/:date/:month/:year/:number/:numb", async (r
         }
       }
     }
+
+    console.log("finding update start")
+
+    
+ if (findingReceived > 0) {
+      const findingInventoryQuery = await conn.query(
+        `SELECT Id, Available_weight__c FROM Inventory_ledger__c 
+       WHERE Item_Name__c = 'Finding' 
+      AND Purity__c = '91.7%'`
+      );
+
+      if (findingInventoryQuery.records.length > 0) {
+        const currentWeight =
+          findingInventoryQuery.records[0].Available_weight__c || 0;
+        const findingUpdateResult = await conn
+          .sobject("Inventory_ledger__c")
+          .update({
+            Id: findingInventoryQuery.records[0].Id,
+            Available_weight__c: currentWeight + findingReceived,
+            Last_Updated__c: receivedDate
+          });
+
+        if (!findingUpdateResult.success) {
+          throw new Error("Failed to update scrap inventory");
+        }
+      } else {
+        const findingCreateResult = await conn
+          .sobject("Inventory_ledger__c")
+          .create({
+            Name: "Finding",
+            Item_Name__c: "Finding",
+            Purity__c: "91.7%",
+            Available_weight__c: findingReceived,
+            Unit_of_Measure__c: "Grams",
+            Last_Updated__c: receivedDate
+          });
+
+        if (!findingCreateResult.success) {
+          throw new Error("Failed to create scrap inventory");
+        }
+      }
+    }
+
+    
+    console.log("scrap update start")
+
+    
 
     // Check if scrap inventory exists for this purity
     const scrapInventoryQuery = await conn.query(
