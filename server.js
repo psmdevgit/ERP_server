@@ -3136,25 +3136,25 @@ app.post("/api/grinding/update/:prefix/:date/:month/:year/:number/:subnumber", a
     const { prefix, date, month, year, number, subnumber } = req.params;
 
     // Default missing numeric values to 0
-   let {
-  issuedWeight=0,
-  receivedDate,
-  receivedWeight=0,
-  grindingLoss=0,
-  ornamentWeight=0,
-  pouches=[]
-} = req.body;
-
-let scrapReceivedWeight = Number(req.body.scrapReceivedWeight || req.body.scrapWeight || 0);
-let dustReceivedWeight  = Number(req.body.dustReceivedWeight  || req.body.dustWeight  || 0);
+    let {
+      issuedWeight=0,
+      receivedDate,
+      receivedWeight = 0,
+      grindingLoss = 0,
+      scrapReceivedWeight = 0, findingReceived = 0,
+      dustReceivedWeight = 0,
+      ornamentWeight = 0,
+      pouches = []
+    } = req.body;
 console.log("[Grinding Update editor ] Raw body:", req.body);
 
     // Ensure numeric values
     issuedWeight = Number(issuedWeight) || 0;
     receivedWeight = Number(receivedWeight) || 0;
     grindingLoss = Number(grindingLoss) || 0;
-    scrapReceivedWeight = Number(scrapReceivedWeight)  || 0;
-    dustReceivedWeight = Number(dustReceivedWeight)|| 0;
+    scrapReceivedWeight = Number(scrapReceivedWeight) || 0;
+    dustReceivedWeight = Number(dustReceivedWeight) || 0;
+    FindingWeight = Number(findingReceived) || 0;
     ornamentWeight = Number(ornamentWeight) || 0;
 
     const grindingNumber = `${prefix}/${date}/${month}/${year}/${number}/${subnumber}`;
@@ -3164,6 +3164,7 @@ console.log("[Grinding Update editor ] Raw body:", req.body);
       grindingNumber,
       receivedDate,
       receivedWeight,
+      findingReceived,
       grindingLoss,
       scrapReceivedWeight,
       dustReceivedWeight,
@@ -3192,9 +3193,10 @@ console.log("[Grinding Update editor ] Raw body:", req.body);
       issued_Weight__c: issuedWeight,
       Received_Date__c: receivedDate,
       Received_Weight__c: receivedWeight,
-      Grinding_loss__c: grindingLoss,
+      Grinding_loss__c: grindingLoss, 
       Grinding_Scrap_Weight__c: scrapReceivedWeight,
       Grinding_Dust_Weight__c: dustReceivedWeight,
+      Grinding_Finding_Weight__c: findingReceived,
       Grinding_Ornament_Weight__c: ornamentWeight,
       Status__c: "Finished"
     };
@@ -3226,6 +3228,45 @@ console.log("[Grinding Update editor ] Raw body:", req.body);
             pouchError
           );
           throw pouchError;
+        }
+      }
+    }
+  /** ---- 4.  Finding Inventory Update ---- **/
+    if (findingReceived > 0) {
+      const findingInventoryQuery = await conn.query(
+        `SELECT Id, Available_weight__c FROM Inventory_ledger__c 
+       WHERE Item_Name__c = 'Finding' 
+      AND Purity__c = '91.7%'`
+      );
+
+      if (findingInventoryQuery.records.length > 0) {
+        const currentWeight =
+          findingInventoryQuery.records[0].Available_weight__c || 0;
+        const findingUpdateResult = await conn
+          .sobject("Inventory_ledger__c")
+          .update({
+            Id: findingInventoryQuery.records[0].Id,
+            Available_weight__c: currentWeight + findingReceived,
+            Last_Updated__c: receivedDate
+          });
+
+        if (!findingUpdateResult.success) {
+          throw new Error("Failed to update scrap inventory");
+        }
+      } else {
+        const findingCreateResult = await conn
+          .sobject("Inventory_ledger__c")
+          .create({
+            Name: "Finding",
+            Item_Name__c: "Finding",
+            Purity__c: grinding.Purity__c,
+            Available_weight__c: findingReceived,
+            Unit_of_Measure__c: "Grams",
+            Last_Updated__c: receivedDate
+          });
+
+        if (!findingCreateResult.success) {
+          throw new Error("Failed to create scrap inventory");
         }
       }
     }
