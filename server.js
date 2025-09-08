@@ -9419,10 +9419,10 @@ app.get("/api/grinding-details/:prefix/:date/:month/:year/:number/:subnumber", a
 
 
 /**-----------------Get all Grinding Details ----------------- */
-app.get("/api/media-details/:prefix/:date/:month/:year/:number", async (req, res) => {
+app.get("/api/media-details/:prefix/:date/:month/:year/:number/:subnumber", async (req, res) => {
   try {
-    const { prefix, date, month, year, number } = req.params;
-    const grindingId = `${prefix}/${date}/${month}/${year}/${number}`;
+    const { prefix, date, month, year, number,subnumber } = req.params;
+    const grindingId = `${prefix}/${date}/${month}/${year}/${number}/${subnumber}`;
 
     // 1. Get Grinding details
     const grindingQuery = await conn.query(
