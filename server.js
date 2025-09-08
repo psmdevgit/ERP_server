@@ -4930,6 +4930,7 @@ app.post("/api/dull/update/:prefix/:date/:month/:year/:number/:subnumber", async
 
     // Check if finding inventory exists for this purity
 
+
  if (findingReceived > 0) {
       const findingInventoryQuery = await conn.query(
         `SELECT Id, Available_weight__c FROM Inventory_ledger__c 
@@ -4968,6 +4969,14 @@ app.post("/api/dull/update/:prefix/:date/:month/:year/:number/:subnumber", async
         }
       }
     }
+
+    // Check if scrap inventory exists for this purity
+    const scrapInventoryQuery = await conn.query(
+      `SELECT Id, Available_weight__c FROM Inventory_ledger__c 
+       WHERE Item_Name__c = 'Scrap' 
+       AND Purity__c = '91.7%'`
+    );
+
 
     // Check if scrap inventory exists for this purity
     const scrapInventoryQuery = await conn.query(
@@ -7085,6 +7094,7 @@ app.post("/api/cutting/update/:prefix/:date/:month/:year/:number/:subnumber", as
       AND Purity__c = '91.7%'`
       );
 
+
       if (findingInventoryQuery.records.length > 0) {
         const currentWeight =
           findingInventoryQuery.records[0].Available_weight__c || 0;
@@ -8154,8 +8164,10 @@ app.get("/api/process-summary", async (req, res) => {
 
     const processes = [
       { name: "Casting", object: "Casting_dept__c", dateField: "Issued_Date__c", fields: { issued: "Issud_weight__c", received: "Weight_Received__c", loss: "Casting_Loss__c", scrap: "Casting_Scrap_Weight__c", dust: "Casting_Dust_Weight__c" }},
-      { name: "Filing", object: "Filing__c", dateField: "Issued_Date__c", fields: { issued: "Issued_weight__c", received: "Receievd_weight__c", loss: "Filing_loss__c", scrap: "Filing_Scrap_Weight__c", dust: "Filing_Dust_Weight__c" }},
+      { name: "Pouch Creation", object: "Filing__c", dateField: "Issued_Date__c", fields: { issued: "Issued_weight__c", received: "Receievd_weight__c", loss: "Filing_loss__c", scrap: "Filing_Scrap_Weight__c", dust: "Filing_Dust_Weight__c" }},
       { name: "Grinding", object: "Grinding__c", dateField: "Issued_Date__c", fields: { issued: "Issued_Weight__c", received: "Received_Weight__c", loss: "Grinding_loss__c", scrap: "Grinding_Scrap_Weight__c", dust: "Grinding_Dust_Weight__c" }},
+     { name: "Media", object: "Media__c", dateField: "Issued_Date__c", fields: { issued: "Issued_Weight__c", received: "Received_Weight__c", loss: "Grinding_loss__c", scrap: "Grinding_Scrap_Weight__c", dust: "Grinding_Dust_Weight__c" }},
+     { name: "Correction", object: "Correction_c__c", dateField: "Issued_Date__c", fields: { issued: "Issued_Weight__c", received: "Received_Weight__c", loss: "Grinding_loss__c", scrap: "Grinding_Scrap_Weight__c", dust: "Grinding_Dust_Weight__c" }},
       { name: "Setting", object: "Setting__c", dateField: "Issued_Date__c", fields: { issued: "Issued_Weight__c", received: "Returned_weight__c", loss: "Setting_l__c", scrap: "Setting_Scrap_Weight__c", dust: "Setting_Dust_Weight__c" }},
       { name: "Polishing", object: "Polishing__c", dateField: "Issued_Date__c", fields: { issued: "Issued_Weight__c", received: "Received_Weight__c", loss: "Polishing_Loss__c", scrap: "Polishing_Scrap_Weight__c", dust: "Polishing_Dust_Weight__c" }},
       { name: "Dull", object: "Dull__c", dateField: "Issued_Date__c", fields: { issued: "Issued_Weight__c", received: "Returned_weight__c", loss: "Dull_loss__c", scrap: "Dull_Scrap_Weight__c", dust: "Dull_Dust_Weight__c" }},
@@ -8227,12 +8239,13 @@ results.push({
 app.get("/api/process-report", async (req, res) => {
   try {
   
-
     const processes = [
       { name: "Casting", object: "Casting_dept__c",  fields: { issued: "Issud_weight__c", received: "Weight_Received__c", loss: "Casting_Loss__c", scrap: "Casting_Scrap_Weight__c", dust: "Casting_Dust_Weight__c" }},
-      { name: "Filing", object: "Filing__c",  fields: { issued: "Issued_weight__c", received: "Receievd_weight__c", loss: "Filing_loss__c", scrap: "Filing_Scrap_Weight__c", dust: "Filing_Dust_Weight__c" }},
+      { name: "Pouch Creation", object: "Filing__c",  fields: { issued: "Issued_weight__c", received: "Receievd_weight__c", loss: "Filing_loss__c", scrap: "Filing_Scrap_Weight__c", dust: "Filing_Dust_Weight__c" }},
       { name: "Grinding", object: "Grinding__c",  fields: { issued: "Issued_Weight__c", received: "Received_Weight__c", loss: "Grinding_loss__c", scrap: "Grinding_Scrap_Weight__c", dust: "Grinding_Dust_Weight__c" }},
-      { name: "Setting", object: "Setting__c",  fields: { issued: "Issued_Weight__c", received: "Returned_weight__c", loss: "Setting_l__c", scrap: "Setting_Scrap_Weight__c", dust: "Setting_Dust_Weight__c" }},
+       { name: "Media", object: "Media__c",  fields: { issued: "Issued_Weight__c", received: "Received_Weight__c", loss: "Grinding_loss__c", scrap: "Grinding_Scrap_Weight__c", dust: "Grinding_Dust_Weight__c" }},
+      { name: "Correction", object: "Correction_c__c",  fields: { issued: "Issued_Weight__c", received: "Received_Weight__c", loss: "Grinding_loss__c", scrap: "Grinding_Scrap_Weight__c", dust: "Grinding_Dust_Weight__c" }},
+       { name: "Setting", object: "Setting__c",  fields: { issued: "Issued_Weight__c", received: "Returned_weight__c", loss: "Setting_l__c", scrap: "Setting_Scrap_Weight__c", dust: "Setting_Dust_Weight__c" }},
       { name: "Polishing", object: "Polishing__c",  fields: { issued: "Issued_Weight__c", received: "Received_Weight__c", loss: "Polishing_Loss__c", scrap: "Polishing_Scrap_Weight__c", dust: "Polishing_Dust_Weight__c" }},
       { name: "Dull", object: "Dull__c",fields: { issued: "Issued_Weight__c", received: "Returned_weight__c", loss: "Dull_loss__c", scrap: "Dull_Scrap_Weight__c", dust: "Dull_Dust_Weight__c" }},
       { name: "Plating", object: "Plating__c",  fields: { issued: "Issued_Weight__c", received: "Returned_Weight__c", loss: "Plating_loss__c", scrap: "Plating_Scrap_Weight__c", dust: "Plating_Dust_Weight__c" }},
@@ -8714,10 +8727,12 @@ app.get("/api/correction/:prefix/:date/:month/:year/:number/:subnumber", async (
 });
 
 /**-----------------Get all Grinding Details ----------------- */
+
 app.get("/api/correction-details/:prefix/:date/:month/:year/:number/:subnumber", async (req, res) => {
   try {
     const { prefix, date, month, year, number,subnumber } = req.params;
     const grindingId = `${prefix}/${date}/${month}/${year}/${number}/${subnumber}`;
+
 
     // 1. Get Grinding details
     const grindingQuery = await conn.query(
@@ -8843,7 +8858,9 @@ app.get("/api/correction-details/:prefix/:date/:month/:year/:number/:subnumber",
 app.post("/api/correction/update/:prefix/:date/:month/:year/:number/:subnumber", async (req, res) => {
   try {
     const { prefix, date, month, year, number, subnumber } = req.params;
-    const { receivedDate, receivedWeight, grindingLoss, scrapReceivedWeight, dustReceivedWeight, ornamentWeight, pouches } = req.body;
+
+    const { receivedDate, receivedWeight, grindingLoss,findingReceived, scrapReceivedWeight, dustReceivedWeight, ornamentWeight, pouches } = req.body;
+
     const grindingNumber = `${prefix}/${date}/${month}/${year}/${number}/${subnumber}`;
 
     console.log('[Grinding Update] Received data:', { 
@@ -8854,6 +8871,9 @@ app.post("/api/correction/update/:prefix/:date/:month/:year/:number/:subnumber",
       scrapReceivedWeight,
       dustReceivedWeight,
       ornamentWeight,
+
+      findingReceived,
+
       pouches 
     });
 
@@ -8880,6 +8900,9 @@ app.post("/api/correction/update/:prefix/:date/:month/:year/:number/:subnumber",
       Grinding_Scrap_Weight__c: scrapReceivedWeight,
       Grinding_Dust_Weight__c: dustReceivedWeight,
       Grinding_Ornament_Weight__c: ornamentWeight,
+
+      Finding_Weight__c: findingReceived,
+
       Status__c: 'Finished'
     };
 
@@ -8906,6 +8929,50 @@ app.post("/api/correction/update/:prefix/:date/:month/:year/:number/:subnumber",
         }
       }
     }
+
+
+
+    
+ if (findingReceived > 0) {
+      const findingInventoryQuery = await conn.query(
+        `SELECT Id, Available_weight__c FROM Inventory_ledger__c 
+       WHERE Item_Name__c = 'Finding' 
+      AND Purity__c = '91.7%'`
+      );
+
+      if (findingInventoryQuery.records.length > 0) {
+        const currentWeight =
+          findingInventoryQuery.records[0].Available_weight__c || 0;
+        const findingUpdateResult = await conn
+          .sobject("Inventory_ledger__c")
+          .update({
+            Id: findingInventoryQuery.records[0].Id,
+            Available_weight__c: currentWeight + findingReceived,
+            Last_Updated__c: receivedDate
+          });
+
+        if (!findingUpdateResult.success) {
+          throw new Error("Failed to update scrap inventory");
+        }
+      } else {;;
+        const findingCreateResult = await conn
+          .sobject("Inventory_ledger__c")
+          .create({
+            Name: "Finding",
+            Item_Name__c: "Finding",
+            Purity__c: grinding.Purity__c,
+            Available_weight__c: findingReceived,
+            Unit_of_Measure__c: "Grams",
+            Last_Updated__c: receivedDate
+          });
+
+        if (!findingCreateResult.success) {
+          throw new Error("Failed to create scrap inventory");
+        }
+      }
+    }
+
+    
 
     // Check if scrap inventory exists for this purity
     const scrapInventoryQuery = await conn.query(
@@ -9355,15 +9422,14 @@ app.get("/api/grinding-details/:prefix/:date/:month/:year/:number/:subnumber", a
   }
 });
 
+
+
 /**-----------------Get all Grinding Details ----------------- */
-
-
-app.get("/api/media-details/:prefix/:date/:month/:year/:number/:subnumber", async (req, res) => {
+app.get("/api/media-details/:prefix/:date/:month/:year/:number", async (req, res) => {
   try {
-    
-    const { prefix, date, month, year, number,subnumber } = req.params;
-    const grindingId = `${prefix}/${date}/${month}/${year}/${number}/${subnumber}`;
-console.log('Fetching details for Grinding ID:', grindingId);
+    const { prefix, date, month, year, number } = req.params;
+    const grindingId = `${prefix}/${date}/${month}/${year}/${number}`;
+
     // 1. Get Grinding details
     const grindingQuery = await conn.query(
       `SELECT 
@@ -9498,9 +9564,12 @@ app.post("/api/media/update/:prefix/:date/:month/:year/:number/:subnumber", asyn
   pouches=[]
 } = req.body;
 
+
+
+let findingReceived = Number(req.body.findingReceived || 0);
 let scrapReceivedWeight = Number(req.body.scrapReceivedWeight || req.body.scrapWeight || 0);
 let dustReceivedWeight  = Number(req.body.dustReceivedWeight  || req.body.dustWeight  || 0);
-console.log("[Grinding Update editor ] Raw body:", req.body);
+console.log("[media Update editor ] Raw body:", req.body);
 
     // Ensure numeric values
     issuedWeight = Number(issuedWeight) || 0;
@@ -9512,7 +9581,9 @@ console.log("[Grinding Update editor ] Raw body:", req.body);
 
     const grindingNumber = `${prefix}/${date}/${month}/${year}/${number}/${subnumber}`;
 
-    console.log("[Grinding Update] Received data:", {
+
+    console.log("[Media Update] Received data:", {
+
       issuedWeight,
       grindingNumber,
       receivedDate,
@@ -9521,6 +9592,9 @@ console.log("[Grinding Update editor ] Raw body:", req.body);
       scrapReceivedWeight,
       dustReceivedWeight,
       ornamentWeight,
+
+      findingReceived,
+
       pouches
     });
 
@@ -9533,7 +9607,9 @@ console.log("[Grinding Update editor ] Raw body:", req.body);
     if (!grindingQuery.records || grindingQuery.records.length === 0) {
       return res.status(404).json({
         success: false,
-        message: "Grinding record not found"
+
+        message: "Media record not found"
+
       });
     }
 
@@ -9549,6 +9625,9 @@ console.log("[Grinding Update editor ] Raw body:", req.body);
       Grinding_Scrap_Weight__c: scrapReceivedWeight,
       Grinding_Dust_Weight__c: dustReceivedWeight,
       Grinding_Ornament_Weight__c: ornamentWeight,
+
+      Finding_Weight__c: findingReceived,
+
       Status__c: "Finished"
     };
 
@@ -9582,6 +9661,49 @@ console.log("[Grinding Update editor ] Raw body:", req.body);
         }
       }
     }
+
+
+
+    if (findingReceived > 0) {
+      const findingInventoryQuery = await conn.query(
+        `SELECT Id, Available_weight__c FROM Inventory_ledger__c 
+       WHERE Item_Name__c = 'Finding' 
+      AND Purity__c = '91.7%'`
+      );
+
+      if (findingInventoryQuery.records.length > 0) {
+        const currentWeight =
+          findingInventoryQuery.records[0].Available_weight__c || 0;
+        const findingUpdateResult = await conn
+          .sobject("Inventory_ledger__c")
+          .update({
+            Id: findingInventoryQuery.records[0].Id,
+            Available_weight__c: currentWeight + findingReceived,
+            Last_Updated__c: receivedDate
+          });
+
+        if (!findingUpdateResult.success) {
+          throw new Error("Failed to update scrap inventory");
+        }
+      } else {;;
+        const findingCreateResult = await conn
+          .sobject("Inventory_ledger__c")
+          .create({
+            Name: "Finding",
+            Item_Name__c: "Finding",
+            Purity__c: grinding.Purity__c,
+            Available_weight__c: findingReceived,
+            Unit_of_Measure__c: "Grams",
+            Last_Updated__c: receivedDate
+          });
+
+        if (!findingCreateResult.success) {
+          throw new Error("Failed to create scrap inventory");
+        }
+      }
+    }
+
+
 
     /** ---- 4. Scrap Inventory Update ---- **/
     if (scrapReceivedWeight > 0) {
