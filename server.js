@@ -95,7 +95,7 @@ app.get('/api/test', (req, res) => {
 });
 
 app.listen(3001, '0.0.0.0', () => {
-  console.log('Server running on port 3001');
+  console.log('Server running on port 5001');
 });
 
 // Configure body-parser with increased limits
@@ -9856,5 +9856,64 @@ app.get("/api/media/:prefix/:date/:month/:year/:number/:subnumber/pouches", asyn
     });
   }
 });
+
+// ====================== Stone Master ================================ ==========================
+
+// API Route: Create Stone Master Record
+app.post('/create/stone', async (req, res) => {
+  try {
+    const { type, color, shape, size, piece, weight } = req.body;
+
+    if (!type || !color || !shape || !size || !piece || !weight) {
+      return res.status(400).json({ success: false, message: 'All fields are required' });
+    }
+
+    console.log(type, color, shape, size, piece, weight);
+     // Insert into Salesforce (or SQL, depending on what you're using)
+    const newRecord = await conn.sobject("Stone_Master__c").create({
+     Type__c: type,
+      Colour__c: color,
+      Shape__c: shape,
+      Size__c: size,
+      Pieces__c: piece,
+      Weight__c: weight,
+    });
+
+    res.json({ success: true, id: newRecord.id, ...req.body });
+
+  } catch (err) {
+    console.error('Server error:', err);
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// Inventory summary API
+app.get('/stonesummary', async (req, res) => {
+  try {
+    console.log("Fetching stone summary...");
+
+    const query = `
+      SELECT Type__c, SUM(Pieces__c) totalPieces, SUM(Weight__c) totalWeight
+      FROM Stone_Master__c
+      GROUP BY Type__c
+    `;
+
+    const result = await conn.query(query);
+
+    console.log("Salesforce query result:", result);
+
+    const summary = result.records.map((record) => ({
+      type: record['Type__c'],
+      totalPieces: parseFloat(record['totalPieces']) || 0,
+      totalWeight: parseFloat(record['totalWeight']) || 0,
+    }));
+
+    res.json({ success: true, summary });
+  } catch (err) {
+    console.error('Error fetching inventory summary:', err);
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
 
 
