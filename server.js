@@ -4970,12 +4970,6 @@ app.post("/api/dull/update/:prefix/:date/:month/:year/:number/:subnumber", async
       }
     }
 
-    // Check if scrap inventory exists for this purity
-    const scrapInventoryQuery = await conn.query(
-      `SELECT Id, Available_weight__c FROM Inventory_ledger__c 
-       WHERE Item_Name__c = 'Scrap' 
-       AND Purity__c = '91.7%'`
-    );
 
 
     // Check if scrap inventory exists for this purity
