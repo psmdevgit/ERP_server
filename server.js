@@ -646,52 +646,116 @@ app.post('/api/orders', upload.single('pdfFile'), async (req, res) => {
   }
 });
 app.post("/api/orderItems", upload.single('pdfFile'), async (req, res) => {
-    try {
-      const { file } = req;
-    const { data } = req.body;
+  try {
+    const { file } = req;
+    const { data, imagesPdf ,detailedPdf } = req.body;
+    const parsedData = JSON.parse(data);    
 
-    const parsedData = JSON.parse(data);
-      const result = await subOrderwithItems(conn, parsedData, file);
-      
-      res.json({
-          success: true,
-          message: 'Order saved successfully',
-          data: result
-      });
+console.log("imagepdf :",imagesPdf);
+
+console.log("detailedpdf :",detailedPdf);
+    
+    // Handle PDF creation for either type
+     const createContentDistribution = async (contentVersionId, title) => {
+      try {
+        const contentDistribution = await conn.sobject('ContentDistribution').create({
+          Name: title,
+          ContentVersionId: contentVersionId,
+          PreferencesAllowViewInBrowser: true,
+          PreferencesLinkLatestVersion: true,
+          PreferencesNotifyOnVisit: false,
+          PreferencesPasswordRequired: false,
+          PreferencesAllowOriginalDownload: true
+        });
+
+        const distributionQuery = await conn.query(
+          `SELECT DistributionPublicUrl FROM ContentDistribution WHERE Id = '${contentDistribution.id}'`
+        );
+
+        return distributionQuery.records[0].DistributionPublicUrl;
+      } catch (error) {
+        console.error('Error creating content distribution:', error);
+        throw error;
+      }
+    };
+
+    const createPDFs = async () => {
+      try {
+        const suffix = "Order";
+        const orderId = parsedData.orderInfo.orderNo;
+
+        console.log("order id", orderId);
+
+        if (!imagesPdf) {
+          throw new Error("imagesPdf is missing in request");
+        }
+
+        if (!detailedPdf) {
+          throw new Error("detailedPdf is missing in request");
+        }
+
+        // ✅ Upload base64 to Salesforce
+        const imagePdfResponse = await conn.sobject('ContentVersion').create({
+          Title: `Order_${orderId}_${suffix}Images.pdf`,
+          PathOnClient: `Order_${orderId}_${suffix}Images.pdf`,
+          VersionData: imagesPdf // ✅ Correctly sending base64 PDF
+        });
+
+        const detailedPdfResponse = await conn.sobject('ContentVersion').create({
+          Title: `Order_${orderId}_${suffix}Detailed.pdf`,
+          PathOnClient: `Order_${orderId}_${suffix}Detailed.pdf`,
+          VersionData: detailedPdf
+        });
+
+
+         const detailedPdfUrl = await createContentDistribution(
+          detailedPdfResponse.id,
+          `Order_${orderId}_${suffix}Detailed.pdf`
+        );
+
+
+       const imagePdfUrl = await createContentDistribution(
+          imagePdfResponse.id, // ✅ Correct variable name
+          `Order_${orderId}_${suffix}Images.pdf`
+        );
+
+        return { imagePdfUrl, detailedPdfUrl };
+      } catch (error) {
+        console.error('Error creating Image PDFs:', error);
+        throw error;
+      }
+    };
+
+
+// ✅ Call it ONCE
+const { imagePdfUrl, detailedPdfUrl } = await createPDFs();
+
+    console.log("image pdf URL:", imagePdfUrl);
+    console.log("detailed pdf URL:", detailedPdfUrl);
+
+    console.log(file);
+    console.log(parsedData);
+
+    // ✅ Pass the actual URL
+    const result = await subOrderwithItems(conn, parsedData, imagePdfUrl, detailedPdfUrl, file);
+
+    res.json({
+      success: true,
+      message: 'Order saved successfully',
+      data: result
+    });
 
   } catch (error) {
-      console.error('Error saving order:', error);
-      res.status(500).json({
-          success: false,
-          message: 'Error saving order',
-          error: error.message
-      });
-  }
-
-  
-app.post("/api/orderItems", upload.single('pdfFile'), async (req, res) => {
-    try {
-      const { file } = req;
-    const { data } = req.body;
-
-    const parsedData = JSON.parse(data);
-      const result = await subOrderwithItems(conn, parsedData, file);
-      
-      res.json({
-          success: true,
-          message: 'Order saved successfully',
-          data: result
-      });
-
-  } catch (error) {
-      console.error('Error saving order:', error);
-      res.status(500).json({
-          success: false,
-          message: 'Error saving order',
-          error: error.message
-      });
+    console.error('Error saving order:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error saving order',
+      error: error.message
+    });
   }
 });
+
+  
   
 async function uploadFileToSalesforce(file) {
   try {
@@ -1102,7 +1166,7 @@ app.get("/api/order-details", async (req, res) => {
         Name,
         Category__c,
         Purity__c,
-        Size__c,
+        size__c,
         Color__c,
         Quantity__c,
         Gross_Weight__c,
@@ -1166,7 +1230,7 @@ app.get("/api/order-details", async (req, res) => {
         name: model.Name,
         category: model.Category__c,
         purity: model.Purity__c,
-        size: model.Size__c,
+        size: model.size__c,
         color: model.Color__c,
         quantity: model.Quantity__c,
         grossWeight: model.Gross_Weight__c,
@@ -1264,21 +1328,22 @@ app.post("/api/update-order-status", async (req, res) => {
 });
 
 
+
 /**------------------- Inventory Management-------------------- **/
 
 app.post("/update-inventory", async (req, res) => {
   try {
-    const { itemName, purity, availableWeight, unitOfMeasure } = req.body;
+    const { itemName, purity, availableWeight, unitOfMeasure, partyLedger } = req.body;
     
     console.log('Received inventory update request:', {
       itemName,
       purity,
       availableWeight,
-      unitOfMeasure
+      unitOfMeasure,partyLedger
     });
 
-    // Validate required fields
-    if (!itemName || !purity || !availableWeight || !unitOfMeasure) {
+    // Validate required fields  || !unitOfMeasure || !partyLedger
+    if (!itemName || !purity || !availableWeight) {
       console.log('Validation failed - missing required fields');
       return res.status(400).json({
         success: false,
@@ -1317,7 +1382,8 @@ app.post("/update-inventory", async (req, res) => {
         Id: existingItem.records[0].Id,
         Available_weight__c: newTotalWeight,  // Fixed field name
         Unit_of_Measure__c: unitOfMeasure,
-        Last_Updated__c: new Date().toISOString()
+        Last_Updated__c: new Date().toISOString(),
+        PartyLedger__c: partyLedger
       });
     } else {
       // Create new record
@@ -1328,7 +1394,8 @@ app.post("/update-inventory", async (req, res) => {
         Purity__c: purity,
         Available_weight__c: parseFloat(availableWeight),  // Fixed field name
         Unit_of_Measure__c: unitOfMeasure,
-        Last_Updated__c: new Date().toISOString()
+        Last_Updated__c: new Date().toISOString(),
+        PartyLedger__c: partyLedger
       });
     }
 
@@ -1390,19 +1457,13 @@ app.get("/get-inventory", async (req, res) => {
     }
 
     // Format the response data
-    // const inventoryItems = result.records.map(item => ({
-    //   name: item.Item_Name__c,
-    //   availableWeight: item.Available_weight__c,
-    //   purity: item.Purity__c
-    // }));
+    const inventoryItems = result.records.map(item => ({
+      name: item.Item_Name__c,
+      availableWeight: item.Available_weight__c,
+      purity: item.Purity__c
+    }));
 
-       const inventoryItems = result.records
-  .filter(item => item.Item_Name__c?.trim().toLowerCase() !== "alloy")
-  .map(item => ({
-    name: item.Item_Name__c,
-    availableWeight: item.Available_weight__c,
-    purity: item.Purity__c
-  }));
+
 
     res.status(200).json({
       success: true,
@@ -2371,8 +2432,12 @@ app.get("/api/filing/:prefix/:date/:month/:year/:number/:numb", async (req, res)
 app.post("/api/filing/update/:prefix/:date/:month/:year/:number/:numb", async (req, res) => {
   try {
     const { prefix, date, month, year, number,numb } = req.params;
-    const { receivedDate, receivedWeight, grindingLoss, scrapReceivedWeight, dustReceivedWeight, ornamentWeight, pouches } = req.body;
+    const { receivedDate, receivedWeight, grindingLoss,findingReceived, scrapReceivedWeight, dustReceivedWeight, ornamentWeight, pouches } = req.body;
     const filingNumber = `${prefix}/${date}/${month}/${year}/${number}/${numb}`;
+
+
+    console.log(findingReceived);
+
 
     // Format the received date to Salesforce format
     const formattedDate = new Date(receivedDate).toISOString();
@@ -2400,6 +2465,7 @@ app.post("/api/filing/update/:prefix/:date/:month/:year/:number/:numb", async (r
       Filing_Scrap_Weight__c: scrapReceivedWeight,
       Filing_Dust_Weight__c: dustReceivedWeight,
       Filing_Ornament_Weight__c: ornamentWeight,
+      Filing_Finding_Weight__c: findingReceived,
       Status__c: 'Finished'
     };
 
@@ -2426,6 +2492,53 @@ app.post("/api/filing/update/:prefix/:date/:month/:year/:number/:numb", async (r
         }
       }
     }
+
+    console.log("finding update start")
+
+    
+ if (findingReceived > 0) {
+      const findingInventoryQuery = await conn.query(
+        `SELECT Id, Available_weight__c FROM Inventory_ledger__c 
+       WHERE Item_Name__c = 'Finding' 
+      AND Purity__c = '91.7%'`
+      );
+
+      if (findingInventoryQuery.records.length > 0) {
+        const currentWeight =
+          findingInventoryQuery.records[0].Available_weight__c || 0;
+        const findingUpdateResult = await conn
+          .sobject("Inventory_ledger__c")
+          .update({
+            Id: findingInventoryQuery.records[0].Id,
+            Available_weight__c: currentWeight + findingReceived,
+            Last_Updated__c: receivedDate
+          });
+
+        if (!findingUpdateResult.success) {
+          throw new Error("Failed to update scrap inventory");
+        }
+      } else {
+        const findingCreateResult = await conn
+          .sobject("Inventory_ledger__c")
+          .create({
+            Name: "Finding",
+            Item_Name__c: "Finding",
+            Purity__c: "91.7%",
+            Available_weight__c: findingReceived,
+            Unit_of_Measure__c: "Grams",
+            Last_Updated__c: receivedDate
+          });
+
+        if (!findingCreateResult.success) {
+          throw new Error("Failed to create scrap inventory");
+        }
+      }
+    }
+
+    
+    console.log("scrap update start")
+
+    
 
     // Check if scrap inventory exists for this purity
     const scrapInventoryQuery = await conn.query(
@@ -2893,10 +3006,10 @@ app.get("/api/grinding/:prefix/:date/:month/:year/:number/:subnumber", async (re
 });
 
 /**-----------------Get all Grinding Details ----------------- */
-app.get("/api/grinding-details/:prefix/:date/:month/:year/:number", async (req, res) => {
+app.get("/api/grinding-details/:prefix/:date/:month/:year/:number/:subnumber", async (req, res) => {
   try {
-    const { prefix, date, month, year, number } = req.params;
-    const grindingId = `${prefix}/${date}/${month}/${year}/${number}`;
+    const { prefix, date, month, year, number,subnumber } = req.params;
+    const grindingId = `${prefix}/${date}/${month}/${year}/${number}/${subnumber}`;
 
     // 1. Get Grinding details
     const grindingQuery = await conn.query(
@@ -3028,7 +3141,7 @@ app.post("/api/grinding/update/:prefix/:date/:month/:year/:number/:subnumber", a
       receivedDate,
       receivedWeight = 0,
       grindingLoss = 0,
-      scrapReceivedWeight = 0,
+      scrapReceivedWeight = 0, findingReceived = 0,
       dustReceivedWeight = 0,
       ornamentWeight = 0,
       pouches = []
@@ -3041,6 +3154,7 @@ console.log("[Grinding Update editor ] Raw body:", req.body);
     grindingLoss = Number(grindingLoss) || 0;
     scrapReceivedWeight = Number(scrapReceivedWeight) || 0;
     dustReceivedWeight = Number(dustReceivedWeight) || 0;
+    FindingWeight = Number(findingReceived) || 0;
     ornamentWeight = Number(ornamentWeight) || 0;
 
     const grindingNumber = `${prefix}/${date}/${month}/${year}/${number}/${subnumber}`;
@@ -3050,6 +3164,7 @@ console.log("[Grinding Update editor ] Raw body:", req.body);
       grindingNumber,
       receivedDate,
       receivedWeight,
+      findingReceived,
       grindingLoss,
       scrapReceivedWeight,
       dustReceivedWeight,
@@ -3078,9 +3193,10 @@ console.log("[Grinding Update editor ] Raw body:", req.body);
       issued_Weight__c: issuedWeight,
       Received_Date__c: receivedDate,
       Received_Weight__c: receivedWeight,
-      Grinding_loss__c: grindingLoss,
+      Grinding_loss__c: grindingLoss, 
       Grinding_Scrap_Weight__c: scrapReceivedWeight,
       Grinding_Dust_Weight__c: dustReceivedWeight,
+      Grinding_Finding_Weight__c: findingReceived,
       Grinding_Ornament_Weight__c: ornamentWeight,
       Status__c: "Finished"
     };
@@ -3112,6 +3228,45 @@ console.log("[Grinding Update editor ] Raw body:", req.body);
             pouchError
           );
           throw pouchError;
+        }
+      }
+    }
+  /** ---- 4.  Finding Inventory Update ---- **/
+    if (findingReceived > 0) {
+      const findingInventoryQuery = await conn.query(
+        `SELECT Id, Available_weight__c FROM Inventory_ledger__c 
+       WHERE Item_Name__c = 'Finding' 
+      AND Purity__c = '91.7%'`
+      );
+
+      if (findingInventoryQuery.records.length > 0) {
+        const currentWeight =
+          findingInventoryQuery.records[0].Available_weight__c || 0;
+        const findingUpdateResult = await conn
+          .sobject("Inventory_ledger__c")
+          .update({
+            Id: findingInventoryQuery.records[0].Id,
+            Available_weight__c: currentWeight + findingReceived,
+            Last_Updated__c: receivedDate
+          });
+
+        if (!findingUpdateResult.success) {
+          throw new Error("Failed to update scrap inventory");
+        }
+      } else {
+        const findingCreateResult = await conn
+          .sobject("Inventory_ledger__c")
+          .create({
+            Name: "Finding",
+            Item_Name__c: "Finding",
+            Purity__c: grinding.Purity__c,
+            Available_weight__c: findingReceived,
+            Unit_of_Measure__c: "Grams",
+            Last_Updated__c: receivedDate
+          });
+
+        if (!findingCreateResult.success) {
+          throw new Error("Failed to create scrap inventory");
         }
       }
     }
@@ -3384,10 +3539,10 @@ app.get("/api/setting/:prefix/:date/:month/:year/:number/:subnumber", async (req
 });
 
 /**-----------------Get all Setting Details ----------------- */
-app.get("/api/setting-details/:prefix/:date/:month/:year/:number/:subm", async (req, res) => {
+app.get("/api/setting-details/:prefix/:date/:month/:year/:number/:subnumber", async (req, res) => {
   try {
-    const { prefix, date, month, year, number } = req.params;
-    const settingId = `${prefix}/${date}/${month}/${year}/${number}`;
+    const { prefix, date, month, year, number,subnumber } = req.params;
+    const settingId = `${prefix}/${date}/${month}/${year}/${number}/${subnumber}`;
 
     // 1. Get Setting details
     const settingQuery = await conn.query(
@@ -3514,14 +3669,14 @@ app.get("/api/setting-details/:prefix/:date/:month/:year/:number/:subm", async (
 app.post("/api/setting/update/:prefix/:date/:month/:year/:number/:subnumber", async (req, res) => {
   try {
     const { prefix, date, month, year, number, subnumber } = req.params;
-    const { receivedDate, receivedWeight, settingLoss, scrapReceivedWeight, dustReceivedWeight, totalStoneWeight, ornamentWeight, pouches } = req.body;
+    const { receivedDate, receivedWeight, settingLoss,findingReceived, scrapReceivedWeight, dustReceivedWeight, totalStoneWeight, ornamentWeight, pouches } = req.body;
     const settingNumber = `${prefix}/${date}/${month}/${year}/${number}/${subnumber}`;
 
     console.log('[Setting Update] Received data:', { 
       settingNumber, 
       receivedDate, 
       receivedWeight, 
-      settingLoss,
+      settingLoss,findingReceived,
       scrapReceivedWeight,
       dustReceivedWeight,
       ornamentWeight,
@@ -3551,6 +3706,7 @@ app.post("/api/setting/update/:prefix/:date/:month/:year/:number/:subnumber", as
       Stone_Weight__c: totalStoneWeight,
       Setting_Scrap_Weight__c: scrapReceivedWeight,
       Setting_Dust_Weight__c: dustReceivedWeight,
+      Setting_Finding_Weight__c: findingReceived,
       Setting_Ornament_Weight__c: ornamentWeight,
       Status__c: 'Finished'
     };
@@ -3579,6 +3735,51 @@ app.post("/api/setting/update/:prefix/:date/:month/:year/:number/:subnumber", as
         }
       }
     }
+   
+    // Check if finding inventory exists for this purity
+
+    
+ if (findingReceived > 0) {
+      const findingInventoryQuery = await conn.query(
+        `SELECT Id, Available_weight__c FROM Inventory_ledger__c 
+       WHERE Item_Name__c = 'Finding' 
+      AND Purity__c = '91.7%'`
+      );
+
+      if (findingInventoryQuery.records.length > 0) {
+        const currentWeight =
+          findingInventoryQuery.records[0].Available_weight__c || 0;
+        const findingUpdateResult = await conn
+          .sobject("Inventory_ledger__c")
+          .update({
+            Id: findingInventoryQuery.records[0].Id,
+            Available_weight__c: currentWeight + findingReceived,
+            Last_Updated__c: receivedDate
+          });
+
+        if (!findingUpdateResult.success) {
+          throw new Error("Failed to update scrap inventory");
+        }
+      } else {;;
+        const findingCreateResult = await conn
+          .sobject("Inventory_ledger__c")
+          .create({
+            Name: "Finding",
+            Item_Name__c: "Finding",
+            Purity__c: grinding.Purity__c,
+            Available_weight__c: findingReceived,
+            Unit_of_Measure__c: "Grams",
+            Last_Updated__c: receivedDate
+          });
+
+        if (!findingCreateResult.success) {
+          throw new Error("Failed to create scrap inventory");
+        }
+      }
+    }
+
+
+
 
     // Check if scrap inventory exists for this purity
     const scrapInventoryQuery = await conn.query(
@@ -4089,14 +4290,14 @@ app.get("/api/polishing/:prefix/:date/:month/:year/:number/:subnumber/pouches", 
 app.post("/api/polishing/update/:prefix/:date/:month/:year/:number/:subnumber", async (req, res) => {
   try {
     const { prefix, date, month, year, number,subnumber } = req.params;
-    const { receivedDate, receivedWeight, polishingLoss, scrapReceivedWeight, dustReceivedWeight, ornamentWeight, pouches } = req.body;
+    const { receivedDate, receivedWeight, polishingLoss,findingReceived, scrapReceivedWeight, dustReceivedWeight, ornamentWeight, pouches } = req.body;
     const polishingNumber = `${prefix}/${date}/${month}/${year}/${number}/${subnumber}`;
 
     console.log('[Polishing Update] Received data:', { 
       polishingNumber, 
       receivedDate, 
       receivedWeight, 
-      polishingLoss, 
+      polishingLoss, findingReceived,
       pouches 
     });
 
@@ -4122,6 +4323,7 @@ app.post("/api/polishing/update/:prefix/:date/:month/:year/:number/:subnumber", 
       Polishing_loss__c: polishingLoss,
       Polishing_Scrap_Weight__c: scrapReceivedWeight,
       Polishing_Dust_Weight__c: dustReceivedWeight,
+      Polishing_Finding_Weight__c: findingReceived,
       Polishing_Ornament_Weight__c: ornamentWeight,
       Status__c: 'Finished'
     };
@@ -4149,6 +4351,48 @@ app.post("/api/polishing/update/:prefix/:date/:month/:year/:number/:subnumber", 
         }
       }
     }
+    
+    // Check if finding inventory exists for this purity
+
+ if (findingReceived > 0) {
+      const findingInventoryQuery = await conn.query(
+        `SELECT Id, Available_weight__c FROM Inventory_ledger__c 
+       WHERE Item_Name__c = 'Finding' 
+      AND Purity__c = '91.7%'`
+      );
+
+      if (findingInventoryQuery.records.length > 0) {
+        const currentWeight =
+          findingInventoryQuery.records[0].Available_weight__c || 0;
+        const findingUpdateResult = await conn
+          .sobject("Inventory_ledger__c")
+          .update({
+            Id: findingInventoryQuery.records[0].Id,
+            Available_weight__c: currentWeight + findingReceived,
+            Last_Updated__c: receivedDate
+          });
+
+        if (!findingUpdateResult.success) {
+          throw new Error("Failed to update scrap inventory");
+        }
+      } else {;;
+        const findingCreateResult = await conn
+          .sobject("Inventory_ledger__c")
+          .create({
+            Name: "Finding",
+            Item_Name__c: "Finding",
+            Purity__c: grinding.Purity__c,
+            Available_weight__c: findingReceived,
+            Unit_of_Measure__c: "Grams",
+            Last_Updated__c: receivedDate
+          });
+
+        if (!findingCreateResult.success) {
+          throw new Error("Failed to create scrap inventory");
+        }
+      }
+    }
+
 
     // Check if scrap inventory exists for this purity
     const scrapInventoryQuery = await conn.query(
@@ -4248,10 +4492,10 @@ app.post("/api/polishing/update/:prefix/:date/:month/:year/:number/:subnumber", 
 
 
 /**-----------------Get all Polishing Details ----------------- */
-app.get("/api/polishing-details/:prefix/:date/:month/:year/:number", async (req, res) => {
+app.get("/api/polishing-details/:prefix/:date/:month/:year/:number/:subnumber", async (req, res) => {
   try {
-    const { prefix, date, month, year, number } = req.params;
-    const polishingId = `${prefix}/${date}/${month}/${year}/${number}`;
+    const { prefix, date, month, year, number,subnumber } = req.params;
+    const polishingId = `${prefix}/${date}/${month}/${year}/${number}/${subnumber}`;
 
     // 1. Get Polishing details
     const polishingQuery = await conn.query(
@@ -4618,7 +4862,7 @@ app.get("/api/dull/:prefix/:date/:month/:year/:number/:subnumber/pouches", async
 app.post("/api/dull/update/:prefix/:date/:month/:year/:number/:subnumber", async (req, res) => {
   try {
     const { prefix, date, month, year, number, subnumber } = req.params;
-    const { receivedDate, receivedWeight, dullLoss, scrapReceivedWeight, dustReceivedWeight, ornamentWeight, pouches } = req.body;
+    const { receivedDate, receivedWeight, dullLoss,findingReceived, scrapReceivedWeight, dustReceivedWeight, ornamentWeight, pouches } = req.body;
     const dullNumber = `${prefix}/${date}/${month}/${year}/${number}/${subnumber}`;
 
     console.log('[Dull Update] Received data:', { 
@@ -4626,6 +4870,7 @@ app.post("/api/dull/update/:prefix/:date/:month/:year/:number/:subnumber", async
       receivedDate, 
       receivedWeight, 
       dullLoss,
+      findingReceived,
       scrapReceivedWeight,
       dustReceivedWeight,
       ornamentWeight,
@@ -4655,6 +4900,7 @@ app.post("/api/dull/update/:prefix/:date/:month/:year/:number/:subnumber", async
       Dull_Scrap_Weight__c: scrapReceivedWeight,
       Dull_Dust_Weight__c: dustReceivedWeight,
       Dull_Ornament_Weight__c: ornamentWeight,
+      Dull_Finding_Weight__c: findingReceived,
       Status__c: 'Finished'
     };
 
@@ -4678,6 +4924,47 @@ app.post("/api/dull/update/:prefix/:date/:month/:year/:number/:subnumber", async
         } catch (pouchError) {
           console.error(`[Dull Update] Failed to update pouch ${pouch.pouchId}:`, pouchError);
           throw pouchError;
+        }
+      }
+    }
+
+    // Check if finding inventory exists for this purity
+
+ if (findingReceived > 0) {
+      const findingInventoryQuery = await conn.query(
+        `SELECT Id, Available_weight__c FROM Inventory_ledger__c 
+       WHERE Item_Name__c = 'Finding' 
+      AND Purity__c = '91.7%'`
+      );
+
+      if (findingInventoryQuery.records.length > 0) {
+        const currentWeight =
+          findingInventoryQuery.records[0].Available_weight__c || 0;
+        const findingUpdateResult = await conn
+          .sobject("Inventory_ledger__c")
+          .update({
+            Id: findingInventoryQuery.records[0].Id,
+            Available_weight__c: currentWeight + findingReceived,
+            Last_Updated__c: receivedDate
+          });
+
+        if (!findingUpdateResult.success) {
+          throw new Error("Failed to update scrap inventory");
+        }
+      } else {;;
+        const findingCreateResult = await conn
+          .sobject("Inventory_ledger__c")
+          .create({
+            Name: "Finding",
+            Item_Name__c: "Finding",
+            Purity__c: grinding.Purity__c,
+            Available_weight__c: findingReceived,
+            Unit_of_Measure__c: "Grams",
+            Last_Updated__c: receivedDate
+          });
+
+        if (!findingCreateResult.success) {
+          throw new Error("Failed to create scrap inventory");
         }
       }
     }
@@ -4780,12 +5067,11 @@ app.post("/api/dull/update/:prefix/:date/:month/:year/:number/:subnumber", async
     });
   }
 });
-
 /**-----------------Get all Dull Details ----------------- */
-app.get("/api/dull-details/:prefix/:date/:month/:year/:number", async (req, res) => {
+app.get("/api/dull-details/:prefix/:date/:month/:year/:number/:subnumber", async (req, res) => {
   try {
-    const { prefix, date, month, year, number } = req.params;
-    const dullId = `${prefix}/${date}/${month}/${year}/${number}`;
+    const { prefix, date, month, year, number,subnumber } = req.params;
+    const dullId = `${prefix}/${date}/${month}/${year}/${number}/${subnumber}`;
 
     // 1. Get Dull details
     const dullQuery = await conn.query(
@@ -6508,9 +6794,10 @@ app.post("/api/cutting/create", async (req, res) => {
 
 /**----------------- Update Plating Received Weight ----------------- */
 app.post("/api/plating/update/:prefix/:date/:month/:year/:number/:subnumber", async (req, res) => {
+
   try {
     const { prefix, date, month, year, number, subnumber } = req.params;
-    const { receivedDate, receivedWeight, platingLoss, scrapReceivedWeight, dustReceivedWeight, ornamentWeight, pouches } = req.body;
+    const { receivedDate, receivedWeight, platingLoss,findingReceived, scrapReceivedWeight, dustReceivedWeight, ornamentWeight, pouches } = req.body;
     const platingNumber = `${prefix}/${date}/${month}/${year}/${number}/${subnumber}`;
 
     console.log('[Plating Update] Received data:', { 
@@ -6521,6 +6808,7 @@ app.post("/api/plating/update/:prefix/:date/:month/:year/:number/:subnumber", as
       scrapReceivedWeight,
       dustReceivedWeight,
       ornamentWeight,
+      findingReceived,
       pouches 
     });
 
@@ -6546,7 +6834,8 @@ app.post("/api/plating/update/:prefix/:date/:month/:year/:number/:subnumber", as
       Plating_Loss__c: platingLoss,
       Plating_Scrap_Weight__c: scrapReceivedWeight,
       Plating_Dust_Weight__c: dustReceivedWeight,
-      Plating_Ornament_Weight__c: ornamentWeight,
+      Plating_Ornament_Weight__c: ornamentWeight,      
+      Plating_Finding_Weight__c: findingReceived,
       Status__c: 'Finished'
     };
 
@@ -6573,6 +6862,48 @@ app.post("/api/plating/update/:prefix/:date/:month/:year/:number/:subnumber", as
         }
       }
     }
+
+    // Check if finding inventory exists for this purity
+
+ if (findingReceived > 0) {
+      const findingInventoryQuery = await conn.query(
+        `SELECT Id, Available_weight__c FROM Inventory_ledger__c 
+       WHERE Item_Name__c = 'Finding' 
+      AND Purity__c = '91.7%'`
+      );
+
+      if (findingInventoryQuery.records.length > 0) {
+        const currentWeight =
+          findingInventoryQuery.records[0].Available_weight__c || 0;
+        const findingUpdateResult = await conn
+          .sobject("Inventory_ledger__c")
+          .update({
+            Id: findingInventoryQuery.records[0].Id,
+            Available_weight__c: currentWeight + findingReceived,
+            Last_Updated__c: receivedDate
+          });
+
+        if (!findingUpdateResult.success) {
+          throw new Error("Failed to update scrap inventory");
+        }
+      } else {;;
+        const findingCreateResult = await conn
+          .sobject("Inventory_ledger__c")
+          .create({
+            Name: "Finding",
+            Item_Name__c: "Finding",
+            Purity__c: grinding.Purity__c,
+            Available_weight__c: findingReceived,
+            Unit_of_Measure__c: "Grams",
+            Last_Updated__c: receivedDate
+          });
+
+        if (!findingCreateResult.success) {
+          throw new Error("Failed to create scrap inventory");
+        }
+      }
+    }
+
 
     // Check if scrap inventory exists for this purity
     const scrapInventoryQuery = await conn.query(
@@ -6679,7 +7010,7 @@ app.post("/api/plating/update/:prefix/:date/:month/:year/:number/:subnumber", as
 app.post("/api/cutting/update/:prefix/:date/:month/:year/:number/:subnumber", async (req, res) => {
   try {
     const { prefix, date, month, year, number, subnumber } = req.params;
-    const { receivedDate, receivedWeight, cuttingLoss, scrapReceivedWeight, dustReceivedWeight, ornamentWeight, pouches } = req.body;
+    const { receivedDate, receivedWeight, cuttingLoss,findingReceived, scrapReceivedWeight, dustReceivedWeight, ornamentWeight, pouches } = req.body;
     const cuttingNumber = `${prefix}/${date}/${month}/${year}/${number}/${subnumber}`;
 
     console.log('[Cutting Update] Received data:', { 
@@ -6687,6 +7018,7 @@ app.post("/api/cutting/update/:prefix/:date/:month/:year/:number/:subnumber", as
       receivedDate, 
       receivedWeight, 
       cuttingLoss,
+      findingReceived,
       scrapReceivedWeight,
       dustReceivedWeight,
       ornamentWeight,
@@ -6715,6 +7047,7 @@ app.post("/api/cutting/update/:prefix/:date/:month/:year/:number/:subnumber", as
       Cutting_Loss__c: cuttingLoss,
       Cutting_Scrap_Weight__c: scrapReceivedWeight,
       Cutting_Dust_Weight__c: dustReceivedWeight,
+      Cutting_Finding_Weight__c: findingReceived,
       Cutting_Ornament_Weight__c: ornamentWeight,
       Status__c: 'Finished'
     };
@@ -6741,8 +7074,49 @@ app.post("/api/cutting/update/:prefix/:date/:month/:year/:number/:subnumber", as
           throw pouchError;
         }
       }
-    }
+    } 
 
+    // Check if finding inventory exists for this purity
+    
+ if (findingReceived > 0) {
+      const findingInventoryQuery = await conn.query(
+        `SELECT Id, Available_weight__c FROM Inventory_ledger__c 
+       WHERE Item_Name__c = 'Finding' 
+      AND Purity__c = '91.7%'`
+      );
+
+      if (findingInventoryQuery.records.length > 0) {
+        const currentWeight =
+          findingInventoryQuery.records[0].Available_weight__c || 0;
+        const findingUpdateResult = await conn
+          .sobject("Inventory_ledger__c")
+          .update({
+            Id: findingInventoryQuery.records[0].Id,
+            Available_weight__c: currentWeight + findingReceived,
+            Last_Updated__c: receivedDate
+          });
+
+        if (!findingUpdateResult.success) {
+          throw new Error("Failed to update scrap inventory");
+        }
+      } else {;;
+        const findingCreateResult = await conn
+          .sobject("Inventory_ledger__c")
+          .create({
+            Name: "Finding",
+            Item_Name__c: "Finding",
+            Purity__c: grinding.Purity__c,
+            Available_weight__c: findingReceived,
+            Unit_of_Measure__c: "Grams",
+            Last_Updated__c: receivedDate
+          });
+
+        if (!findingCreateResult.success) {
+          throw new Error("Failed to create scrap inventory");
+        }
+      }
+    }
+    
     // Check if scrap inventory exists for this purity
     const scrapInventoryQuery = await conn.query(
       `SELECT Id, Available_weight__c FROM Inventory_ledger__c 
@@ -6841,11 +7215,10 @@ app.post("/api/cutting/update/:prefix/:date/:month/:year/:number/:subnumber", as
     });
   }
 });
-
 app.post("/api/cutting/update/:prefix/:date/:month/:year/:number", async (req, res) => {
   try {
     const { prefix, date, month, year, number } = req.params;
-    const { receivedDate, receivedWeight, cuttingLoss, scrapReceivedWeight, dustReceivedWeight, ornamentWeight, pouches } = req.body;
+    const { receivedDate, receivedWeight, cuttingLoss,findingReceived, scrapReceivedWeight, dustReceivedWeight, ornamentWeight, pouches } = req.body;
     const cuttingNumber = `${prefix}/${date}/${month}/${year}/${number}`;
 
     console.log('[Cutting Update] Received data:', { 
@@ -6855,6 +7228,7 @@ app.post("/api/cutting/update/:prefix/:date/:month/:year/:number", async (req, r
       cuttingLoss,
       scrapReceivedWeight,
       dustReceivedWeight,
+      findingReceived,
       ornamentWeight,
       pouches 
     });
@@ -6881,6 +7255,7 @@ app.post("/api/cutting/update/:prefix/:date/:month/:year/:number", async (req, r
       Cutting_Loss__c: cuttingLoss,
       Cutting_Scrap_Weight__c: scrapReceivedWeight,
       Cutting_Dust_Weight__c: dustReceivedWeight,
+      Cutting_Finding_Weight__c: findingReceived,
       Cutting_Ornament_Weight__c: ornamentWeight,
       Status__c: 'Finished'
     };
@@ -6908,6 +7283,49 @@ app.post("/api/cutting/update/:prefix/:date/:month/:year/:number", async (req, r
         }
       }
     }
+    
+    // Check if finding inventory exists for this purity
+
+    
+ if (findingReceived > 0) {
+      const findingInventoryQuery = await conn.query(
+        `SELECT Id, Available_weight__c FROM Inventory_ledger__c 
+       WHERE Item_Name__c = 'Finding' 
+      AND Purity__c = '91.7%'`
+      );
+
+      if (findingInventoryQuery.records.length > 0) {
+        const currentWeight =
+          findingInventoryQuery.records[0].Available_weight__c || 0;
+        const findingUpdateResult = await conn
+          .sobject("Inventory_ledger__c")
+          .update({
+            Id: findingInventoryQuery.records[0].Id,
+            Available_weight__c: currentWeight + findingReceived,
+            Last_Updated__c: receivedDate
+          });
+
+        if (!findingUpdateResult.success) {
+          throw new Error("Failed to update scrap inventory");
+        }
+      } else {;;
+        const findingCreateResult = await conn
+          .sobject("Inventory_ledger__c")
+          .create({
+            Name: "Finding",
+            Item_Name__c: "Finding",
+            Purity__c: grinding.Purity__c,
+            Available_weight__c: findingReceived,
+            Unit_of_Measure__c: "Grams",
+            Last_Updated__c: receivedDate
+          });
+
+        if (!findingCreateResult.success) {
+          throw new Error("Failed to create scrap inventory");
+        }
+      }
+    }
+
 
     // Check if scrap inventory exists for this purity
     const scrapInventoryQuery = await conn.query(
@@ -7090,10 +7508,10 @@ app.get("/api/cutting", async (req, res) => {
 });
 
 /**----------------- Get Plating Details ----------------- */
-app.get("/api/plating-details/:prefix/:date/:month/:year/:number", async (req, res) => {
+app.get("/api/plating-details/:prefix/:date/:month/:year/:number/:subnumber", async (req, res) => {
   try {
-    const { prefix, date, month, year, number } = req.params;
-    const platingId = `${prefix}/${date}/${month}/${year}/${number}`;
+    const { prefix, date, month, year, number,subnumber } = req.params;
+    const platingId = `${prefix}/${date}/${month}/${year}/${number}/${subnumber}`;
 
     // 1. Get Plating details
     const platingQuery = await conn.query(
@@ -7217,10 +7635,10 @@ app.get("/api/plating-details/:prefix/:date/:month/:year/:number", async (req, r
 });
 
 /**----------------- Get Cutting Details ----------------- */
-app.get("/api/cutting-details/:prefix/:date/:month/:year/:number", async (req, res) => {
+app.get("/api/cutting-details/:prefix/:date/:month/:year/:number/:subnumber", async (req, res) => {
   try {
-    const { prefix, date, month, year, number } = req.params;
-    const cuttingId = `${prefix}/${date}/${month}/${year}/${number}`;
+    const { prefix, date, month, year, number,subnumber } = req.params;
+    const cuttingId = `${prefix}/${date}/${month}/${year}/${number}/${subnumber}`;
 
     // 1. Get Cutting details
     const cuttingQuery = await conn.query(
@@ -7909,7 +8327,7 @@ app.get("/api/previewModels", async (req, res) => {
 
   try {
     const result = await conn.query(
-      `SELECT Id, Name, Image_URL__c 
+      `SELECT Id, Name, Image_URL__c,Category__c, Size__c, Gross_Weight__C, Net_Weight__c, Stone_Weight__c
        FROM Jewlery_Model__c 
        WHERE Category__c = '${categoryId}'
        ORDER BY Name`
@@ -7984,3 +8402,1343 @@ app.post("/generate-model-name", async (req, res) => {
     res.status(500).json({ success: false, message: err.message });
   }
 });
+
+// ========================================================================================================================================================
+
+app.get("/getimage", async (req, res) => {
+  const { fileUrl } = req.query;
+  if (!fileUrl) {
+    return res.status(400).json({ error: "fileUrl query param is required" });
+  }
+
+  try {
+    const response = await axios.get(fileUrl, {
+      responseType: "arraybuffer",
+      headers: {
+        Authorization: `Bearer ${process.env.SALESFORCE_ACCESS_TOKEN}`,
+      },
+    });
+
+    // Detect image type (optional)
+    const contentType =
+      response.headers["content-type"] || "image/jpeg";
+    res.setHeader("Content-Type", contentType);
+    res.send(response.data);
+  } catch (error) {
+    console.error("Error fetching image:", error.message);
+    res.status(500).json({ error: "Failed to fetch image" });
+  }
+});
+
+app.post("/api/party-ledger", async (req, res) => {
+  try {
+    const {
+      name,
+      partyCode,
+      gstNo,
+      panNo,
+      address,
+      pincode,
+      mobile,
+      email,
+      accountType,
+    } = req.body;
+
+    // Insert into Salesforce (or SQL, depending on what you're using)
+    const newVendor = await conn.sobject("Party_Ledger__c").create({
+      Name: name,
+      Party_Code__c: partyCode,
+      Gst__c: gstNo,
+      Pan_Card__c: panNo,
+      Address__c: address,
+      Pincode__c: pincode,
+      Mobile_no__c: mobile,
+      Email_ID__c: email,
+      Account_Type__c: accountType,
+    });
+
+    res.json({ success: true, id: newVendor.id, ...req.body });
+  
+  } catch (err) {
+    console.error("Error inserting vendor:", err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// GET Vendors
+app.get("/api/party-ledger", async (req, res) => {
+  try {
+    const records = await conn.query(`
+      SELECT Id, Name, Party_Code__c, Gst__c, Pan_Card__c, Address__c,
+             Pincode__c, Mobile_No__c, Email_ID__c, Account_Type__c
+      FROM Party_Ledger__c
+    `);
+
+    const vendors = records.records.map(r => ({
+      id: r.Id,
+      name: r.Name,
+      partyCode: r.Party_Code__c,
+      gstNo: r.Gst__c,
+      panNo: r.Pan_Card__c,
+      address: r.Address__c,
+      pincode: r.Pincode__c,
+      mobile: r.Mobile_No__c,
+      email: r.Email_ID__c,
+      accountType: r.Account_Type__c,
+    }));
+
+    res.json(vendors);
+  
+  } catch (err) {
+    console.error("Error fetching vendors:", err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// GET Vendor Ledger
+// GET Vendor Transactions
+app.get("/api/vendor-ledger", async (req, res) => {
+  try {
+    const { fromDate, toDate, partyId, orderId } = req.query;
+
+    // First query (Orders)
+    let orderQuery = `
+      SELECT Id, Name,Party_Name__c,Party_Code__c, Advance_Metal__c, Created_Date__c, Total_Weight__c,Status__c,Purity__c,Advance_Metal_Purity__c,Delivery_Date__c
+FROM Order__c
+ 
+    `;
+//  WHERE CreatedDate >= ${fromDate}T00:00:00Z
+     // AND CreatedDate <= ${toDate}T23:59:59Z
+    if (partyId) orderQuery += ` AND Party_Code__c = '${partyId}'`;
+    if (orderId) orderQuery += ` AND Order__c = '${orderId}'`;
+
+    const orders = await conn.query(orderQuery);
+
+    // For each order → fetch delivered weight
+    const transactions = await Promise.all(
+      orders.records.map(async (o) => {
+        const delivered = await conn.query(`
+         SELECT SUM(Total_Net_Weight__c) 
+          FROM Billing__c 
+        
+        `);
+//  WHERE Party_Name__c = '${o.Party_Code__c}'
+        return {
+          id: o.Id,
+          orderId: o.Name,
+          party: o.Party_Code__c,
+          tranDate: o.Created_Date__c,
+          issuedWeight: o.Advance_Metal__c,
+          advanceMetalPurity: o.Advance_Metal_Purity__c,
+          deliveredWeight: delivered.records[0]?.expr0 || 0,
+          balanceWeight: (o.Advance_Metal__c || 0) - (delivered.records[0]?.expr0 || 0),
+        };
+      })
+    );
+
+    res.json(transactions);
+  } catch (err) {
+    console.error("Error fetching vendor transactions:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+//<------------------------------------------------------- Correction APIs ----------------- */------------------------ //
+app.post("/api/correction/create", async (req, res) => { 
+  try {
+    const { 
+      correctionId,
+      issuedDate,
+      pouches,
+      totalWeight,
+      status,
+      product,
+      quantity,
+      orderId
+    } = req.body;
+
+    console.log('[Correction Create] Received data:', { 
+      correctionId,
+      issuedDate,
+      pouchCount: pouches.length,
+      totalWeight,
+      status,
+      product,
+      quantity,
+      orderId
+    });
+
+    // Create Correction record
+    const correctionResult = await conn.sobject('Correction_c__c').create({
+      Name: correctionId,
+      Issued_Date__c: issuedDate,
+      Issued_Weight__c: totalWeight,
+      Status__c: status,
+      Product__c: product,
+      Quantity__c: quantity,
+      Order_Id__c: orderId
+    });
+
+    console.log('[Correction Create] Correction record created:', correctionResult);
+
+    if (!correctionResult.success) {
+      throw new Error('Failed to create correction record');
+    }
+
+    // Update existing pouches
+    const pouchResults = await Promise.all(pouches.map(async pouch => {
+      console.log('[Correction Create] Updating pouch:', {
+        pouchId: pouch.pouchId,
+        weight: pouch.correctionWeight
+      });
+
+      const pouchResult = await conn.sobject('Pouch__c').update({
+        Id: pouch.pouchId,
+        Correction__c: correctionResult.id,
+        Isssued_Weight_Correction__c: pouch.correctionWeight,
+        Quantity__c: pouch.quantity
+      });
+
+      console.log('[Correction Create] Pouch updated:', pouchResult);
+      return pouchResult;
+    }));
+
+    res.json({
+      success: true,
+      message: "Correction record created successfully",
+      data: {
+        correctionId,
+        correctionRecordId: correctionResult.id,
+        pouches: pouchResults
+      }
+    });
+
+  } catch (error) {
+    console.error("[Correction Create] Error:", error);
+    console.error("[Correction Create] Full error details:", JSON.stringify(error, null, 2));
+    res.status(500).json({
+      success: false,
+      message: error.message || "Failed to create correction record"
+    });
+  }
+});
+
+
+app.get("/api/correction", async(req, res) => {
+  try {
+    const grindingQuery = await conn.query(
+       `SELECT Id, Name, Issued_Date__c, Issued_Weight__c,Received_Date__c,Received_Weight__c,Status__c,Grinding_loss__c,Product__c,Quantity__c,Order_Id__c,Grinding_Scrap_Weight__C,Grinding_Dust_Weight__c FROM Correction_c__c
+       ORDER BY Issued_Date__c DESC`
+    );
+
+    res.json({
+      success: true,
+      data: grindingQuery.records
+    });
+  } catch (error) {
+    console.error("Error fetching grinding records:", error); 
+    res.status(500).json({
+      success: false,
+      message: error.message || "Failed to fetch grinding records"
+    });
+    
+  }
+});
+
+app.get("/api/correction/:prefix/:date/:month/:year/:number/:subnumber", async (req, res) => {
+  try {
+    const { prefix, date, month, year, number,subnumber } = req.params;
+    const correctionID = `${prefix}/${date}/${month}/${year}/${number}/${subnumber}`;
+    
+    console.log('Requested Correction ID:', correctionID);
+
+    // Query for grinding details
+    const grindingQuery = await conn.query(
+      `SELECT 
+        Id,
+        Name,
+        Issued_Date__c,
+        Issued_Weight__c,
+        Received_Weight__c,
+        Received_Date__c,
+        Product__c,
+        Quantity__c,
+      	Order_Id__c,
+        status__c,
+        Grinding_loss__c
+       FROM Correction_c__c
+       WHERE Name = '${correctionID}'`
+    );
+
+    if (!grindingQuery.records || grindingQuery.records.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "correction record not found"
+      });
+    }
+
+    const grinding = grindingQuery.records[0];
+
+    // Get Related Pouches
+    const pouchesQuery = await conn.query(
+      `SELECT 
+        Id,
+        Name,
+        Order_Id__c,
+        correction__c,
+        Isssued_Weight_Correction__c,
+        Product__c,
+        Quantity__c
+       FROM Pouch__c 
+       WHERE correction__c = '${grinding.Id}'`
+    );
+
+    const response = {
+      success: true,
+      data: {
+        grinding: grindingQuery.records[0],
+        pouches: pouchesQuery.records || []
+      }
+    };
+
+    res.json(response);
+
+  } catch (error) {
+    console.error("Error fetching grinding details:", error);
+    console.error("Full error details:", JSON.stringify(error, null, 2));
+    res.status(500).json({
+      success: false,
+      message: error.message || "Failed to fetch grinding details"
+    });
+  }
+});
+
+/**-----------------Get all Grinding Details ----------------- */
+app.get("/api/correction-details/:prefix/:date/:month/:year/:number/:subnumber", async (req, res) => {
+  try {
+    const { prefix, date, month, year, number,subnumber } = req.params;
+    const grindingId = `${prefix}/${date}/${month}/${year}/${number}/${subnumber}`;
+
+    // 1. Get Grinding details
+    const grindingQuery = await conn.query(
+      `SELECT 
+        Id,
+        Name,
+        Issued_Date__c,
+        Issued_Weight__c,
+        Received_Weight__c,
+        Received_Date__c,
+        Status__c,
+        Grinding_loss__c
+       FROM Correction_c__c
+       WHERE Name = '${grindingId}'`
+    );
+
+    if (!grindingQuery.records || grindingQuery.records.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "Grinding record not found"
+      });
+    }
+
+    const grinding = grindingQuery.records[0];
+
+    // 2. Get Pouches for this grinding
+    const pouchesQuery = await conn.query(
+      `SELECT 
+        Id,
+        Name,
+        Order_Id__c,
+        Isssued_Weight_Correction__c
+       FROM Pouch__c 
+       WHERE correction__c = '${grinding.Id}'`
+    );
+
+    // 3. Get Orders for these pouches
+    const orderIds = pouchesQuery.records.map(pouch => `'${pouch.Order_Id__c}'`).join(',');
+    let orders = [];
+    let models = [];
+
+    if (orderIds.length > 0) {
+      const ordersQuery = await conn.query(
+        `SELECT 
+          Id,
+          Name,
+          Order_Id__c,
+          Party_Name__c,
+          Delivery_Date__c,
+          Status__c
+         FROM Order__c 
+         WHERE Order_Id__c IN (${orderIds})`
+      );
+      
+      orders = ordersQuery.records;
+
+      // 4. Get Models for these orders
+      const orderIdsForModels = orders.map(order => `'${order.Id}'`).join(',');
+      if (orderIdsForModels.length > 0) {
+        const modelsQuery = await conn.query(
+          `SELECT 
+            Id,     
+            Name,
+            Order__c,
+            Category__c,
+            Purity__c,
+            Size__c,
+            Color__c,
+            Quantity__c,
+            Gross_Weight__c,
+            Stone_Weight__c,
+            Net_Weight__c
+           FROM Order_Models__c 
+           WHERE Order__c IN (${orderIdsForModels})`
+        );
+        
+        models = modelsQuery.records;
+      }
+    }
+
+    const response = {
+      success: true,
+      data: {
+        grinding: grinding,
+        pouches: pouchesQuery.records.map(pouch => {
+          const relatedOrder = orders.find(order => order.Order_Id__c === pouch.Order_Id__c);
+          const pouchModels = relatedOrder ? models.filter(model => 
+            model.Order__c === relatedOrder.Id
+          ) : [];
+
+          return {
+            ...pouch,
+            order: relatedOrder || null,
+            models: pouchModels
+          };
+        })
+      },
+      summary: {
+        totalPouches: pouchesQuery.records.length,
+        totalOrders: orders.length,
+        totalModels: models.length,
+        totalPouchWeight: pouchesQuery.records.reduce((sum, pouch) => 
+          sum + (pouch.Isssued_Weight_Correction__c || 0), 0),
+        issuedWeight: grinding.Issued_Weight__c,
+        receivedWeight: grinding.Received_Weight__c,
+        grindingLoss: grinding.Grinding_loss__c
+      }
+    };
+
+    res.json(response);
+
+  } catch (error) {
+    console.error("Error fetching grinding details:", error);
+    console.error("Full error details:", JSON.stringify(error, null, 2));
+    res.status(500).json({
+      success: false,
+      message: error.message || "Failed to fetch grinding details"
+    });
+  }
+});
+
+/**-----------------Update Grinding Received Weight ----------------- */
+app.post("/api/correction/update/:prefix/:date/:month/:year/:number/:subnumber", async (req, res) => {
+  try {
+    const { prefix, date, month, year, number, subnumber } = req.params;
+    const { receivedDate, receivedWeight, grindingLoss, scrapReceivedWeight, dustReceivedWeight, ornamentWeight, pouches } = req.body;
+    const grindingNumber = `${prefix}/${date}/${month}/${year}/${number}/${subnumber}`;
+
+    console.log('[Grinding Update] Received data:', { 
+      grindingNumber, 
+      receivedDate, 
+      receivedWeight, 
+      grindingLoss,
+      scrapReceivedWeight,
+      dustReceivedWeight,
+      ornamentWeight,
+      pouches 
+    });
+
+    // First get the Grinding record
+    const grindingQuery = await conn.query(
+      `SELECT Id, Name FROM Correction_c__c WHERE Name = '${grindingNumber}'`
+    );
+
+    if (!grindingQuery.records || grindingQuery.records.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "Correction record not found"
+      });
+    }
+
+    const grinding = grindingQuery.records[0];
+
+    // Update the grinding record
+    const updateData = {
+      Id: grinding.Id,
+      Received_Date__c: receivedDate,
+      Received_Weight__c: receivedWeight,
+      Grinding_loss__c: grindingLoss,
+      Grinding_Scrap_Weight__c: scrapReceivedWeight,
+      Grinding_Dust_Weight__c: dustReceivedWeight,
+      Grinding_Ornament_Weight__c: ornamentWeight,
+      Status__c: 'Finished'
+    };
+
+    const updateResult = await conn.sobject('Correction_c__c').update(updateData);
+
+    if (!updateResult.success) {
+      throw new Error('Failed to update grinding record');
+    }
+
+    // Update pouches if provided
+    if (pouches && pouches.length > 0) {
+      for (const pouch of pouches) {
+        try {
+          const pouchUpdateResult = await conn.sobject('Pouch__c').update({
+            Id: pouch.pouchId,
+            Received_Weight_Correction__c: pouch.receivedWeight,
+            Correction_loss__c: grindingLoss
+          });
+
+          console.log(`[Grinding Update] Pouch update result for ${pouch.pouchId}:`, pouchUpdateResult);
+        } catch (pouchError) {
+          console.error(`[Grinding Update] Failed to update pouch ${pouch.pouchId}:`, pouchError);
+          throw pouchError;
+        }
+      }
+    }
+
+    // Check if scrap inventory exists for this purity
+    const scrapInventoryQuery = await conn.query(
+      `SELECT Id, Available_weight__c FROM Inventory_ledger__c 
+       WHERE Item_Name__c = 'scrap' 
+       AND Purity__c = '91.7%'`
+    );
+
+    if (scrapReceivedWeight > 0) {
+      if (scrapInventoryQuery.records.length > 0) {
+        // Update existing scrap inventory
+        const currentWeight = scrapInventoryQuery.records[0].Available_weight__c || 0;
+        const scrapUpdateResult = await conn.sobject('Inventory_ledger__c').update({
+          Id: scrapInventoryQuery.records[0].Id,
+          Available_weight__c: currentWeight + scrapReceivedWeight,
+          Last_Updated__c: receivedDate
+        });
+
+        if (!scrapUpdateResult.success) {
+          throw new Error('Failed to update scrap inventory');
+        }
+      } else {
+        // Create new scrap inventory
+        const scrapCreateResult = await conn.sobject('Inventory_ledger__c').create({
+          Name: 'Scrap',
+          Item_Name__c: 'Scrap',
+          Purity__c: grinding.Purity__c,
+          Available_weight__c: scrapReceivedWeight,
+          Unit_of_Measure__c: 'Grams',
+          Last_Updated__c: receivedDate
+        });
+
+        if (!scrapCreateResult.success) {
+          throw new Error('Failed to create scrap inventory');
+        }
+      }
+    }
+
+    // Check if dust inventory exists
+    const dustInventoryQuery = await conn.query(
+      `SELECT Id, Available_weight__c FROM Inventory_ledger__c 
+       WHERE Item_Name__c = 'Dust' 
+       AND Purity__c = '91.7%'`
+    );
+
+    if (dustReceivedWeight > 0) {
+      if (dustInventoryQuery.records.length > 0) {
+        // Update existing dust inventory
+        const currentWeight = dustInventoryQuery.records[0].Available_weight__c || 0;
+        const dustUpdateResult = await conn.sobject('Inventory_ledger__c').update({
+          Id: dustInventoryQuery.records[0].Id,
+          Available_weight__c: currentWeight + dustReceivedWeight,
+          Last_Updated__c: receivedDate
+        });
+
+        if (!dustUpdateResult.success) {
+          throw new Error('Failed to update dust inventory');
+        }
+      } else {
+        // Create new dust inventory
+        const dustCreateResult = await conn.sobject('Inventory_ledger__c').create({
+          Name: 'Dust',
+          Item_Name__c: 'Dust',
+          Purity__c: grinding.Purity__c,
+          Available_weight__c: dustReceivedWeight,
+          Unit_of_Measure__c: 'Grams',
+          Last_Updated__c: receivedDate
+        });
+
+        if (!dustCreateResult.success) {
+          throw new Error('Failed to create dust inventory');
+        }
+      }
+    }
+
+    res.json({
+      success: true,
+      message: "Grinding record updated successfully",
+      data: {
+        grindingNumber,
+        receivedDate,
+        receivedWeight,
+        grindingLoss,
+        scrapReceivedWeight,
+        dustReceivedWeight,
+        ornamentWeight,
+        status: 'Finished'
+      }
+    });
+
+  } catch (error) {
+    console.error("[Grinding Update] Error:", error);
+    console.error("[Grinding Update] Full error details:", JSON.stringify(error, null, 2));
+    res.status(500).json({
+      success: false,
+      message: error.message || "Failed to update grinding record"
+    });
+  }
+});
+
+app.get("/api/correction/:prefix/:date/:month/:year/:number/:subnumber/pouches", async (req, res) => {
+  try {
+    const { prefix, date, month, year, number, subnumber } = req.params;
+    const grindingId = `${prefix}/${date}/${month}/${year}/${number}/${subnumber}`;
+    
+    console.log('[Get Pouches] Fetching pouches for grinding:', grindingId);
+
+    // First get the Grinding record
+    const grindingQuery = await conn.query(
+      `SELECT Id FROM Correction_c__c WHERE Name = '${grindingId}'`
+    );
+
+    if (!grindingQuery.records || grindingQuery.records.length === 0) {
+      console.log('[Get Pouches] Grinding not found:', grindingId);
+      return res.status(404).json({
+        success: false,
+        message: "Correction record not found"
+      });
+    }
+
+    // Get pouches with their IDs and issued weights
+    const pouchesQuery = await conn.query(
+      `SELECT 
+        Id, 
+        Name,
+        Isssued_Weight_Correction__c,
+        Received_Weight_Correction__c,
+        Product__c,
+        Quantity__c,
+        Order_Id__c
+       FROM Pouch__c 
+       WHERE correction__c = '${grindingQuery.records[0].Id}'`
+    );
+
+    console.log('[Get Pouches] Found pouches:', pouchesQuery.records);
+
+    res.json({
+      success: true,
+      data: {
+        pouches: pouchesQuery.records
+      }
+    });
+
+  } catch (error) {
+    console.error("[Get Pouches] Error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch pouches"
+    });
+  }
+});
+
+
+
+// ----------------- Get Media Process with Date Filter -----------------
+
+
+app.post("/api/media/create", async (req, res) => {
+  try {
+    const { 
+      grindingId,
+      issuedDate,
+      pouches,
+      totalWeight,
+      status,
+      product,
+      quantity,
+      orderId
+    } = req.body;
+
+    console.log('[Grinding Create] Received data:', { 
+      grindingId,
+      issuedDate,
+      pouchCount: pouches.length,
+      totalWeight,
+      status,
+      product,
+      quantity,
+      orderId
+    });
+
+    // First create the Grinding record
+    const grindingResult = await conn.sobject('Media__c').create({
+      Name: grindingId,
+      Issued_Date__c: issuedDate,
+      Issued_Weight__c: totalWeight,
+      Status__c: status,
+      Product__c:product,
+      Quantity__c:quantity,
+      Order_Id__c: orderId
+    });
+
+    console.log('[Grinding Create] Grinding record created:', grindingResult);
+
+    if (!grindingResult.success) {
+      throw new Error('Failed to create grinding record');
+    }
+
+    // Update existing pouches
+    const pouchResults = await Promise.all(pouches.map(async pouch => {
+      console.log('[Grinding Create] Updating pouch:', {
+        pouchId: pouch.pouchId,
+        weight: pouch.grindingWeight
+      });
+
+      const pouchResult = await conn.sobject('Pouch__c').update({
+        Id: pouch.pouchId,
+        Media__c: grindingResult.id,
+        	Isssued_Weight_Media__c: pouch.grindingWeight,
+        Quantity__c: pouch.quantity
+      });
+
+      console.log('[Grinding Create] Pouch updated:', pouchResult);
+      return pouchResult;
+    }));
+
+    res.json({
+      success: true,
+      message: "Grinding record created successfully",
+      data: {
+        grindingId: grindingId,
+        grindingRecordId: grindingResult.id,
+        pouches: pouchResults
+      }
+    });
+
+  } catch (error) {
+    console.error("[Grinding Create] Error:", error);
+    console.error("[Grinding Create] Full error details:", JSON.stringify(error, null, 2));
+    res.status(500).json({
+      success: false,
+      message: error.message || "Failed to create grinding record"
+    });
+  }
+});
+
+app.get("/api/media", async(req, res) => {
+  try {
+    const grindingQuery = await conn.query(
+       `SELECT Id, Name, Issued_Date__c, Issued_Weight__c,Received_Date__c,Received_Weight__c,Status__c,Grinding_loss__c,Product__c,Quantity__c,Order_Id__c,Grinding_Scrap_Weight__C,Grinding_Dust_Weight__c FROM Media__c
+       ORDER BY Issued_Date__c DESC`
+    );
+
+    res.json({
+      success: true,
+      data: grindingQuery.records
+    });
+  } catch (error) {
+    console.error("Error fetching grinding records:", error); 
+    res.status(500).json({
+      success: false,
+      message: error.message || "Failed to fetch grinding records"
+    });
+  }
+});
+
+app.get("/api/media/:prefix/:date/:month/:year/:number/:subnumber", async (req, res) => {
+  try {
+    const { prefix, date, month, year, number,subnumber } = req.params;
+    const grindingId = `${prefix}/${date}/${month}/${year}/${number}/${subnumber}`;
+    
+    console.log('Requested Grinding ID:', grindingId);
+
+    // Query for grinding details
+    const grindingQuery = await conn.query(
+      `SELECT 
+        Id,
+        Name,
+        Issued_Date__c,
+        Issued_Weight__c,
+        Received_Weight__c,
+        Received_Date__c,
+        Product__c,
+        Quantity__c,
+      	Order_Id__c,
+        status__c,
+        Grinding_loss__c
+       FROM Media__c
+       WHERE Name = '${grindingId}'`
+    );
+
+    if (!grindingQuery.records || grindingQuery.records.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "Grinding record not found"
+      });
+    }
+
+    const grinding = grindingQuery.records[0];
+
+    // Get Related Pouches
+    const pouchesQuery = await conn.query(
+      `SELECT 
+        Id,
+        Name,
+        Order_Id__c,
+        Media__c,
+        Isssued_Weight_Media__c,
+        Product__c,
+        Quantity__c
+       FROM Pouch__c 
+       WHERE Media__c = '${grinding.Id}'`
+    );
+
+    const response = {
+      success: true,
+      data: {
+        grinding: grindingQuery.records[0],
+        pouches: pouchesQuery.records || []
+      }
+    };
+
+    res.json(response);
+
+  } catch (error) {
+    console.error("Error fetching grinding details:", error);
+    console.error("Full error details:", JSON.stringify(error, null, 2));
+    res.status(500).json({
+      success: false,
+      message: error.message || "Failed to fetch grinding details"
+    });
+  }
+});
+
+app.get("/api/grinding-details/:prefix/:date/:month/:year/:number/:subnumber", async (req, res) => {
+  try {
+    const { prefix, date, month, year, number,subnumber } = req.params;
+    const grindingId = `${prefix}/${date}/${month}/${year}/${number}/${subnumber}`;
+
+    // 1. Get Grinding details
+    const grindingQuery = await conn.query(
+      `SELECT 
+        Id,
+        Name,
+        Issued_Date__c,
+        Issued_Weight__c,
+        Received_Weight__c,
+        Received_Date__c,
+        Status__c,
+        Grinding_loss__c
+       FROM Grinding__c
+       WHERE Name = '${grindingId}'`
+    );
+
+    if (!grindingQuery.records || grindingQuery.records.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "Grinding record not found"
+      });
+    }
+
+    const grinding = grindingQuery.records[0];
+
+    // 2. Get Pouches for this grinding
+    const pouchesQuery = await conn.query(
+      `SELECT 
+        Id,
+        Name,
+        Order_Id__c,
+        Isssued_Weight_Grinding__c
+       FROM Pouch__c 
+       WHERE Grinding__c = '${grinding.Id}'`
+    );
+
+    // 3. Get Orders for these pouches
+    const orderIds = pouchesQuery.records.map(pouch => `'${pouch.Order_Id__c}'`).join(',');
+    let orders = [];
+    let models = [];
+
+    if (orderIds.length > 0) {
+      const ordersQuery = await conn.query(
+        `SELECT 
+          Id,
+          Name,
+          Order_Id__c,
+          Party_Name__c,
+          Delivery_Date__c,
+          Status__c
+         FROM Order__c 
+         WHERE Order_Id__c IN (${orderIds})`
+      );
+      
+      orders = ordersQuery.records;
+
+      // 4. Get Models for these orders
+      const orderIdsForModels = orders.map(order => `'${order.Id}'`).join(',');
+      if (orderIdsForModels.length > 0) {
+        const modelsQuery = await conn.query(
+          `SELECT 
+            Id,     
+            Name,
+            Order__c,
+            Category__c,
+            Purity__c,
+            Size__c,
+            Color__c,
+            Quantity__c,
+            Gross_Weight__c,
+            Stone_Weight__c,
+            Net_Weight__c
+           FROM Order_Models__c 
+           WHERE Order__c IN (${orderIdsForModels})`
+        );
+        
+        models = modelsQuery.records;
+      }
+    }
+
+    const response = {
+      success: true,
+      data: {
+        grinding: grinding,
+        pouches: pouchesQuery.records.map(pouch => {
+          const relatedOrder = orders.find(order => order.Order_Id__c === pouch.Order_Id__c);
+          const pouchModels = relatedOrder ? models.filter(model => 
+            model.Order__c === relatedOrder.Id
+          ) : [];
+
+          return {
+            ...pouch,
+            order: relatedOrder || null,
+            models: pouchModels
+          };
+        })
+      },
+      summary: {
+        totalPouches: pouchesQuery.records.length,
+        totalOrders: orders.length,
+        totalModels: models.length,
+        totalPouchWeight: pouchesQuery.records.reduce((sum, pouch) => 
+          sum + (pouch.Isssued_Weight_Grinding__c || 0), 0),
+        issuedWeight: grinding.Issued_Weight__c,
+        receivedWeight: grinding.Received_Weight__c,
+        grindingLoss: grinding.Grinding_loss__c
+      }
+    };
+
+    res.json(response);
+
+  } catch (error) {
+    console.error("Error fetching grinding details:", error);
+    console.error("Full error details:", JSON.stringify(error, null, 2));
+    res.status(500).json({
+      success: false,
+      message: error.message || "Failed to fetch grinding details"
+    });
+  }
+});
+
+/**-----------------Get all Grinding Details ----------------- */
+
+
+app.get("/api/media-details/:prefix/:date/:month/:year/:number/:subnumber", async (req, res) => {
+  try {
+    
+    const { prefix, date, month, year, number,subnumber } = req.params;
+    const grindingId = `${prefix}/${date}/${month}/${year}/${number}/${subnumber}`;
+console.log('Fetching details for Grinding ID:', grindingId);
+    // 1. Get Grinding details
+    const grindingQuery = await conn.query(
+      `SELECT 
+        Id,
+        Name,
+        Issued_Date__c,
+        Issued_Weight__c,
+        Received_Weight__c,
+        Received_Date__c,
+        Status__c,
+        Grinding_loss__c
+       FROM Media__c
+       WHERE Name = '${grindingId}'`
+    );
+
+    if (!grindingQuery.records || grindingQuery.records.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "Grinding record not found"
+      });
+    }
+
+    const grinding = grindingQuery.records[0];
+
+    // 2. Get Pouches for this grinding
+    const pouchesQuery = await conn.query(
+      `SELECT 
+        Id,
+        Name,
+        Order_Id__c,
+        Isssued_Weight_Media__c
+       FROM Pouch__c 
+       WHERE Grinding__c = '${grinding.Id}'`
+    );
+
+    // 3. Get Orders for these pouches
+    const orderIds = pouchesQuery.records.map(pouch => `'${pouch.Order_Id__c}'`).join(',');
+    let orders = [];
+    let models = [];
+
+    if (orderIds.length > 0) {
+      const ordersQuery = await conn.query(
+        `SELECT 
+          Id,
+          Name,
+          Order_Id__c,
+          Party_Name__c,
+          Delivery_Date__c,
+          Status__c
+         FROM Order__c 
+         WHERE Order_Id__c IN (${orderIds})`
+      );
+      
+      orders = ordersQuery.records;
+
+      // 4. Get Models for these orders
+      const orderIdsForModels = orders.map(order => `'${order.Id}'`).join(',');
+      if (orderIdsForModels.length > 0) {
+        const modelsQuery = await conn.query(
+          `SELECT 
+            Id,     
+            Name,
+            Order__c,
+            Category__c,
+            Purity__c,
+            Size__c,
+            Color__c,
+            Quantity__c,
+            Gross_Weight__c,
+            Stone_Weight__c,
+            Net_Weight__c
+           FROM Order_Models__c 
+           WHERE Order__c IN (${orderIdsForModels})`
+        );
+        
+        models = modelsQuery.records;
+      }
+    }
+
+    const response = {
+      success: true,
+      data: {
+        grinding: grinding,
+        pouches: pouchesQuery.records.map(pouch => {
+          const relatedOrder = orders.find(order => order.Order_Id__c === pouch.Order_Id__c);
+          const pouchModels = relatedOrder ? models.filter(model => 
+            model.Order__c === relatedOrder.Id
+          ) : [];
+
+          return {
+            ...pouch,
+            order: relatedOrder || null,
+            models: pouchModels
+          };
+        })
+      },
+      summary: {
+        totalPouches: pouchesQuery.records.length,
+        totalOrders: orders.length,
+        totalModels: models.length,
+        totalPouchWeight: pouchesQuery.records.reduce((sum, pouch) => 
+          sum + (pouch.Isssued_Weight_Grinding__c || 0), 0),
+        issuedWeight: grinding.Issued_Weight__c,
+        receivedWeight: grinding.Received_Weight__c,
+        grindingLoss: grinding.Grinding_loss__c
+      }
+    };
+
+    res.json(response);
+
+  } catch (error) {
+    console.error("Error fetching grinding details:", error);
+    console.error("Full error details:", JSON.stringify(error, null, 2));
+    res.status(500).json({
+      success: false,
+      message: error.message || "Failed to fetch grinding details"
+    });
+  }
+});
+
+app.post("/api/media/update/:prefix/:date/:month/:year/:number/:subnumber", async (req, res) => {
+  try {
+    const { prefix, date, month, year, number, subnumber } = req.params;
+
+    // Default missing numeric values to 0
+   let {
+  issuedWeight=0,
+  receivedDate,
+  receivedWeight=0,
+  grindingLoss=0,
+  ornamentWeight=0,
+  pouches=[]
+} = req.body;
+
+let scrapReceivedWeight = Number(req.body.scrapReceivedWeight || req.body.scrapWeight || 0);
+let dustReceivedWeight  = Number(req.body.dustReceivedWeight  || req.body.dustWeight  || 0);
+console.log("[Grinding Update editor ] Raw body:", req.body);
+
+    // Ensure numeric values
+    issuedWeight = Number(issuedWeight) || 0;
+    receivedWeight = Number(receivedWeight) || 0;
+    grindingLoss = Number(grindingLoss) || 0;
+    scrapReceivedWeight = Number(scrapReceivedWeight)  || 0;
+    dustReceivedWeight = Number(dustReceivedWeight)|| 0;
+    ornamentWeight = Number(ornamentWeight) || 0;
+
+    const grindingNumber = `${prefix}/${date}/${month}/${year}/${number}/${subnumber}`;
+
+    console.log("[Grinding Update] Received data:", {
+      issuedWeight,
+      grindingNumber,
+      receivedDate,
+      receivedWeight,
+      grindingLoss,
+      scrapReceivedWeight,
+      dustReceivedWeight,
+      ornamentWeight,
+      pouches
+    });
+
+    /** ---- 1. Get Grinding Record ---- **/
+  const grindingQuery = await conn.query(
+   `SELECT Id, Name  FROM Media__c WHERE Name = '${grindingNumber}'`
+);
+
+
+    if (!grindingQuery.records || grindingQuery.records.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "Grinding record not found"
+      });
+    }
+
+    const grinding = grindingQuery.records[0];
+
+    /** ---- 2. Update Grinding Record ---- **/
+    const updateData = {
+      Id: grinding.Id,
+      issued_Weight__c: issuedWeight,
+      Received_Date__c: receivedDate,
+      Received_Weight__c: receivedWeight,
+      Grinding_loss__c: grindingLoss,
+      Grinding_Scrap_Weight__c: scrapReceivedWeight,
+      Grinding_Dust_Weight__c: dustReceivedWeight,
+      Grinding_Ornament_Weight__c: ornamentWeight,
+      Status__c: "Finished"
+    };
+
+    const updateResult = await conn.sobject("Media__c").update(updateData);
+
+    if (!updateResult.success) {
+      throw new Error("Failed to update grinding record");
+    }
+
+    /** ---- 3. Update Pouches ---- **/
+    if (Array.isArray(pouches) && pouches.length > 0) {
+      for (const pouch of pouches) {
+        try {
+          const pouchUpdateResult = await conn.sobject("Pouch__c").update({
+            Id: pouch.pouchId,
+            
+            Received_Weight_media__c: Number(pouch.receivedWeight) || 0,
+            Media_Loss__c: grindingLoss
+          });
+
+          console.log(
+            `[Grinding Update] Pouch update result for ${pouch.pouchId}:`,
+            pouchUpdateResult
+          );
+        } catch (pouchError) {
+          console.error(
+            `[Grinding Update] Failed to update pouch ${pouch.pouchId}:`,
+            pouchError
+          );
+          throw pouchError;
+        }
+      }
+    }
+
+    /** ---- 4. Scrap Inventory Update ---- **/
+    if (scrapReceivedWeight > 0) {
+      const scrapInventoryQuery = await conn.query(
+        `SELECT Id, Available_weight__c FROM Inventory_ledger__c 
+       WHERE Item_Name__c = 'Scrap' 
+      AND Purity__c = '91.7%'`
+      );
+
+      if (scrapInventoryQuery.records.length > 0) {
+        const currentWeight =
+          scrapInventoryQuery.records[0].Available_weight__c || 0;
+        const scrapUpdateResult = await conn
+          .sobject("Inventory_ledger__c")
+          .update({
+            Id: scrapInventoryQuery.records[0].Id,
+            Available_weight__c: currentWeight + scrapReceivedWeight,
+            Last_Updated__c: receivedDate
+          });
+
+        if (!scrapUpdateResult.success) {
+          throw new Error("Failed to update scrap inventory");
+        }
+      } else {
+        const scrapCreateResult = await conn
+          .sobject("Inventory_ledger__c")
+          .create({
+            Name: "Scrap",
+            Item_Name__c: "Scrap",
+            Purity__c: grinding.Purity__c,
+            Available_weight__c: scrapReceivedWeight,
+            Unit_of_Measure__c: "Grams",
+            Last_Updated__c: receivedDate
+          });
+
+        if (!scrapCreateResult.success) {
+          throw new Error("Failed to create scrap inventory");
+        }
+      }
+    }
+
+    /** ---- 5. Dust Inventory Update ---- **/
+    if (dustReceivedWeight > 0) {
+      const dustInventoryQuery = await conn.query(
+      `SELECT Id, Available_weight__c ,Purity__c FROM Inventory_ledger__c 
+     WHERE Item_Name__c = 'G Machine Dust' and Purity__c ='91.7%'`
+      );
+
+      if (dustInventoryQuery.records.length > 0) {
+        const currentWeight =
+          dustInventoryQuery.records[0].Available_weight__c || 0;
+        const dustUpdateResult = await conn
+          .sobject("Inventory_ledger__c")
+          .update({
+            Id: dustInventoryQuery.records[0].Id,
+            Available_weight__c: currentWeight + dustReceivedWeight,
+            Last_Updated__c: receivedDate
+          });
+
+        if (!dustUpdateResult.success) {
+          throw new Error("Failed to update dust inventory");
+        }
+      } else {
+        const dustCreateResult = await conn
+          .sobject("Inventory_ledger__c")
+          .create({
+            Name: "G Machine Dust",
+            Item_Name__c: "G Machine Dust",
+            Purity__c: grinding.Purity__c,
+            Available_weight__c: dustReceivedWeight,
+            Unit_of_Measure__c: "Grams",
+            Last_Updated__c: receivedDate
+          });
+
+
+
+        if (!dustCreateResult.success) {
+          throw new Error("Failed to create dust inventory");
+        }
+        console.log('[Grinding Update] Dust inventory created:', !dustCreateResult.success ? 'Failed' : 'Success');
+      }
+    } 
+
+    /** ---- 6. Response ---- **/
+    res.json({
+      success: true,
+      message: "Grinding record updated successfully",
+      data: {
+        grindingNumber,
+        receivedDate,
+        receivedWeight,
+        grindingLoss,
+        scrapReceivedWeight,
+        dustReceivedWeight,
+        ornamentWeight,
+        status: "Finished"
+      }
+    });
+  } catch (error) {
+    console.error("[Grinding Update] Error:", error);
+    res.status(500).json({
+      success: false,
+      message: error.message || "Failed to update grinding record"
+    });
+  }
+});
+
+app.get("/api/media/:prefix/:date/:month/:year/:number/:subnumber/pouches", async (req, res) => {
+  try {
+    const { prefix, date, month, year, number, subnumber } = req.params;
+    const grindingId = `${prefix}/${date}/${month}/${year}/${number}/${subnumber}`;
+    
+    console.log('[Get Pouches] Fetching pouches for grinding:', grindingId);
+
+    // First get the Grinding record
+    const grindingQuery = await conn.query(
+      `SELECT Id FROM Media__c WHERE Name = '${grindingId}'`
+    );
+
+    if (!grindingQuery.records || grindingQuery.records.length === 0) {
+      console.log('[Get Pouches] Grinding not found:', grindingId);
+      return res.status(404).json({
+        success: false,
+        message: "Grinding record not found"
+      });
+    }
+
+    // Get pouches with their IDs and issued weights
+    const pouchesQuery = await conn.query(
+      `SELECT 
+        Id, 
+        Name,
+        Isssued_Weight_Media__c,
+        Received_Weight_Media__c,
+        Product__c,
+        Quantity__c,
+        Order_Id__c
+       FROM Pouch__c 
+       WHERE Media__c = '${grindingQuery.records[0].Id}'`
+    );
+
+    console.log('[Get Pouches] Found pouches:', pouchesQuery.records);
+
+    res.json({
+      success: true,
+      data: {
+        pouches: pouchesQuery.records
+      }
+    });
+
+  } catch (error) {
+    console.error("[Get Pouches] Error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch pouches"
+    });
+  }
+});
+
+
