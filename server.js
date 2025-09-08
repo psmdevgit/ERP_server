@@ -3006,10 +3006,10 @@ app.get("/api/grinding/:prefix/:date/:month/:year/:number/:subnumber", async (re
 });
 
 /**-----------------Get all Grinding Details ----------------- */
-app.get("/api/grinding-details/:prefix/:date/:month/:year/:number", async (req, res) => {
+app.get("/api/grinding-details/:prefix/:date/:month/:year/:number/:subnumber", async (req, res) => {
   try {
-    const { prefix, date, month, year, number } = req.params;
-    const grindingId = `${prefix}/${date}/${month}/${year}/${number}`;
+    const { prefix, date, month, year, number,subnumber } = req.params;
+    const grindingId = `${prefix}/${date}/${month}/${year}/${number}/${subnumber}`;
 
     // 1. Get Grinding details
     const grindingQuery = await conn.query(
@@ -3539,10 +3539,10 @@ app.get("/api/setting/:prefix/:date/:month/:year/:number/:subnumber", async (req
 });
 
 /**-----------------Get all Setting Details ----------------- */
-app.get("/api/setting-details/:prefix/:date/:month/:year/:number/:subm", async (req, res) => {
+app.get("/api/setting-details/:prefix/:date/:month/:year/:number/:subnumber", async (req, res) => {
   try {
-    const { prefix, date, month, year, number } = req.params;
-    const settingId = `${prefix}/${date}/${month}/${year}/${number}`;
+    const { prefix, date, month, year, number,subnumber } = req.params;
+    const settingId = `${prefix}/${date}/${month}/${year}/${number}/${subnumber}`;
 
     // 1. Get Setting details
     const settingQuery = await conn.query(
@@ -4492,10 +4492,10 @@ app.post("/api/polishing/update/:prefix/:date/:month/:year/:number/:subnumber", 
 
 
 /**-----------------Get all Polishing Details ----------------- */
-app.get("/api/polishing-details/:prefix/:date/:month/:year/:number", async (req, res) => {
+app.get("/api/polishing-details/:prefix/:date/:month/:year/:number/:subnumber", async (req, res) => {
   try {
-    const { prefix, date, month, year, number } = req.params;
-    const polishingId = `${prefix}/${date}/${month}/${year}/${number}`;
+    const { prefix, date, month, year, number,subnumber } = req.params;
+    const polishingId = `${prefix}/${date}/${month}/${year}/${number}/${subnumber}`;
 
     // 1. Get Polishing details
     const polishingQuery = await conn.query(
@@ -4930,6 +4930,7 @@ app.post("/api/dull/update/:prefix/:date/:month/:year/:number/:subnumber", async
 
     // Check if finding inventory exists for this purity
 
+
  if (findingReceived > 0) {
       const findingInventoryQuery = await conn.query(
         `SELECT Id, Available_weight__c FROM Inventory_ledger__c 
@@ -4968,6 +4969,14 @@ app.post("/api/dull/update/:prefix/:date/:month/:year/:number/:subnumber", async
         }
       }
     }
+
+    // Check if scrap inventory exists for this purity
+    const scrapInventoryQuery = await conn.query(
+      `SELECT Id, Available_weight__c FROM Inventory_ledger__c 
+       WHERE Item_Name__c = 'Scrap' 
+       AND Purity__c = '91.7%'`
+    );
+
 
     // Check if scrap inventory exists for this purity
     const scrapInventoryQuery = await conn.query(
@@ -5068,10 +5077,10 @@ app.post("/api/dull/update/:prefix/:date/:month/:year/:number/:subnumber", async
   }
 });
 /**-----------------Get all Dull Details ----------------- */
-app.get("/api/dull-details/:prefix/:date/:month/:year/:number", async (req, res) => {
+app.get("/api/dull-details/:prefix/:date/:month/:year/:number/:subnumber", async (req, res) => {
   try {
-    const { prefix, date, month, year, number } = req.params;
-    const dullId = `${prefix}/${date}/${month}/${year}/${number}`;
+    const { prefix, date, month, year, number,subnumber } = req.params;
+    const dullId = `${prefix}/${date}/${month}/${year}/${number}/${subnumber}`;
 
     // 1. Get Dull details
     const dullQuery = await conn.query(
@@ -7085,6 +7094,7 @@ app.post("/api/cutting/update/:prefix/:date/:month/:year/:number/:subnumber", as
       AND Purity__c = '91.7%'`
       );
 
+
       if (findingInventoryQuery.records.length > 0) {
         const currentWeight =
           findingInventoryQuery.records[0].Available_weight__c || 0;
@@ -7508,10 +7518,10 @@ app.get("/api/cutting", async (req, res) => {
 });
 
 /**----------------- Get Plating Details ----------------- */
-app.get("/api/plating-details/:prefix/:date/:month/:year/:number", async (req, res) => {
+app.get("/api/plating-details/:prefix/:date/:month/:year/:number/:subnumber", async (req, res) => {
   try {
-    const { prefix, date, month, year, number } = req.params;
-    const platingId = `${prefix}/${date}/${month}/${year}/${number}`;
+    const { prefix, date, month, year, number,subnumber } = req.params;
+    const platingId = `${prefix}/${date}/${month}/${year}/${number}/${subnumber}`;
 
     // 1. Get Plating details
     const platingQuery = await conn.query(
@@ -7635,10 +7645,10 @@ app.get("/api/plating-details/:prefix/:date/:month/:year/:number", async (req, r
 });
 
 /**----------------- Get Cutting Details ----------------- */
-app.get("/api/cutting-details/:prefix/:date/:month/:year/:number", async (req, res) => {
+app.get("/api/cutting-details/:prefix/:date/:month/:year/:number/:subnumber", async (req, res) => {
   try {
-    const { prefix, date, month, year, number } = req.params;
-    const cuttingId = `${prefix}/${date}/${month}/${year}/${number}`;
+    const { prefix, date, month, year, number,subnumber } = req.params;
+    const cuttingId = `${prefix}/${date}/${month}/${year}/${number}/${subnumber}`;
 
     // 1. Get Cutting details
     const cuttingQuery = await conn.query(
@@ -8717,10 +8727,12 @@ app.get("/api/correction/:prefix/:date/:month/:year/:number/:subnumber", async (
 });
 
 /**-----------------Get all Grinding Details ----------------- */
-app.get("/api/correction-details/:prefix/:date/:month/:year/:number", async (req, res) => {
+
+app.get("/api/correction-details/:prefix/:date/:month/:year/:number/:subnumber", async (req, res) => {
   try {
-    const { prefix, date, month, year, number } = req.params;
-    const grindingId = `${prefix}/${date}/${month}/${year}/${number}`;
+    const { prefix, date, month, year, number,subnumber } = req.params;
+    const grindingId = `${prefix}/${date}/${month}/${year}/${number}/${subnumber}`;
+
 
     // 1. Get Grinding details
     const grindingQuery = await conn.query(
@@ -8846,7 +8858,9 @@ app.get("/api/correction-details/:prefix/:date/:month/:year/:number", async (req
 app.post("/api/correction/update/:prefix/:date/:month/:year/:number/:subnumber", async (req, res) => {
   try {
     const { prefix, date, month, year, number, subnumber } = req.params;
+
     const { receivedDate, receivedWeight, grindingLoss,findingReceived, scrapReceivedWeight, dustReceivedWeight, ornamentWeight, pouches } = req.body;
+
     const grindingNumber = `${prefix}/${date}/${month}/${year}/${number}/${subnumber}`;
 
     console.log('[Grinding Update] Received data:', { 
@@ -8857,7 +8871,9 @@ app.post("/api/correction/update/:prefix/:date/:month/:year/:number/:subnumber",
       scrapReceivedWeight,
       dustReceivedWeight,
       ornamentWeight,
+
       findingReceived,
+
       pouches 
     });
 
@@ -8884,7 +8900,9 @@ app.post("/api/correction/update/:prefix/:date/:month/:year/:number/:subnumber",
       Grinding_Scrap_Weight__c: scrapReceivedWeight,
       Grinding_Dust_Weight__c: dustReceivedWeight,
       Grinding_Ornament_Weight__c: ornamentWeight,
+
       Finding_Weight__c: findingReceived,
+
       Status__c: 'Finished'
     };
 
@@ -9279,6 +9297,132 @@ app.get("/api/media/:prefix/:date/:month/:year/:number/:subnumber", async (req, 
   }
 });
 
+app.get("/api/grinding-details/:prefix/:date/:month/:year/:number/:subnumber", async (req, res) => {
+  try {
+    const { prefix, date, month, year, number,subnumber } = req.params;
+    const grindingId = `${prefix}/${date}/${month}/${year}/${number}/${subnumber}`;
+
+    // 1. Get Grinding details
+    const grindingQuery = await conn.query(
+      `SELECT 
+        Id,
+        Name,
+        Issued_Date__c,
+        Issued_Weight__c,
+        Received_Weight__c,
+        Received_Date__c,
+        Status__c,
+        Grinding_loss__c
+       FROM Grinding__c
+       WHERE Name = '${grindingId}'`
+    );
+
+    if (!grindingQuery.records || grindingQuery.records.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "Grinding record not found"
+      });
+    }
+
+    const grinding = grindingQuery.records[0];
+
+    // 2. Get Pouches for this grinding
+    const pouchesQuery = await conn.query(
+      `SELECT 
+        Id,
+        Name,
+        Order_Id__c,
+        Isssued_Weight_Grinding__c
+       FROM Pouch__c 
+       WHERE Grinding__c = '${grinding.Id}'`
+    );
+
+    // 3. Get Orders for these pouches
+    const orderIds = pouchesQuery.records.map(pouch => `'${pouch.Order_Id__c}'`).join(',');
+    let orders = [];
+    let models = [];
+
+    if (orderIds.length > 0) {
+      const ordersQuery = await conn.query(
+        `SELECT 
+          Id,
+          Name,
+          Order_Id__c,
+          Party_Name__c,
+          Delivery_Date__c,
+          Status__c
+         FROM Order__c 
+         WHERE Order_Id__c IN (${orderIds})`
+      );
+      
+      orders = ordersQuery.records;
+
+      // 4. Get Models for these orders
+      const orderIdsForModels = orders.map(order => `'${order.Id}'`).join(',');
+      if (orderIdsForModels.length > 0) {
+        const modelsQuery = await conn.query(
+          `SELECT 
+            Id,     
+            Name,
+            Order__c,
+            Category__c,
+            Purity__c,
+            Size__c,
+            Color__c,
+            Quantity__c,
+            Gross_Weight__c,
+            Stone_Weight__c,
+            Net_Weight__c
+           FROM Order_Models__c 
+           WHERE Order__c IN (${orderIdsForModels})`
+        );
+        
+        models = modelsQuery.records;
+      }
+    }
+
+    const response = {
+      success: true,
+      data: {
+        grinding: grinding,
+        pouches: pouchesQuery.records.map(pouch => {
+          const relatedOrder = orders.find(order => order.Order_Id__c === pouch.Order_Id__c);
+          const pouchModels = relatedOrder ? models.filter(model => 
+            model.Order__c === relatedOrder.Id
+          ) : [];
+
+          return {
+            ...pouch,
+            order: relatedOrder || null,
+            models: pouchModels
+          };
+        })
+      },
+      summary: {
+        totalPouches: pouchesQuery.records.length,
+        totalOrders: orders.length,
+        totalModels: models.length,
+        totalPouchWeight: pouchesQuery.records.reduce((sum, pouch) => 
+          sum + (pouch.Isssued_Weight_Grinding__c || 0), 0),
+        issuedWeight: grinding.Issued_Weight__c,
+        receivedWeight: grinding.Received_Weight__c,
+        grindingLoss: grinding.Grinding_loss__c
+      }
+    };
+
+    res.json(response);
+
+  } catch (error) {
+    console.error("Error fetching grinding details:", error);
+    console.error("Full error details:", JSON.stringify(error, null, 2));
+    res.status(500).json({
+      success: false,
+      message: error.message || "Failed to fetch grinding details"
+    });
+  }
+});
+
+
 
 /**-----------------Get all Grinding Details ----------------- */
 app.get("/api/media-details/:prefix/:date/:month/:year/:number", async (req, res) => {
@@ -9421,6 +9565,7 @@ app.post("/api/media/update/:prefix/:date/:month/:year/:number/:subnumber", asyn
 } = req.body;
 
 
+
 let findingReceived = Number(req.body.findingReceived || 0);
 let scrapReceivedWeight = Number(req.body.scrapReceivedWeight || req.body.scrapWeight || 0);
 let dustReceivedWeight  = Number(req.body.dustReceivedWeight  || req.body.dustWeight  || 0);
@@ -9436,7 +9581,9 @@ console.log("[media Update editor ] Raw body:", req.body);
 
     const grindingNumber = `${prefix}/${date}/${month}/${year}/${number}/${subnumber}`;
 
+
     console.log("[Media Update] Received data:", {
+
       issuedWeight,
       grindingNumber,
       receivedDate,
@@ -9445,7 +9592,9 @@ console.log("[media Update editor ] Raw body:", req.body);
       scrapReceivedWeight,
       dustReceivedWeight,
       ornamentWeight,
+
       findingReceived,
+
       pouches
     });
 
@@ -9458,7 +9607,9 @@ console.log("[media Update editor ] Raw body:", req.body);
     if (!grindingQuery.records || grindingQuery.records.length === 0) {
       return res.status(404).json({
         success: false,
+
         message: "Media record not found"
+
       });
     }
 
@@ -9474,7 +9625,9 @@ console.log("[media Update editor ] Raw body:", req.body);
       Grinding_Scrap_Weight__c: scrapReceivedWeight,
       Grinding_Dust_Weight__c: dustReceivedWeight,
       Grinding_Ornament_Weight__c: ornamentWeight,
+
       Finding_Weight__c: findingReceived,
+
       Status__c: "Finished"
     };
 
@@ -9508,6 +9661,7 @@ console.log("[media Update editor ] Raw body:", req.body);
         }
       }
     }
+
 
 
     if (findingReceived > 0) {
