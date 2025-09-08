@@ -8846,7 +8846,7 @@ app.get("/api/correction-details/:prefix/:date/:month/:year/:number", async (req
 app.post("/api/correction/update/:prefix/:date/:month/:year/:number/:subnumber", async (req, res) => {
   try {
     const { prefix, date, month, year, number, subnumber } = req.params;
-    const { receivedDate, receivedWeight, grindingLoss, scrapReceivedWeight, dustReceivedWeight, ornamentWeight, pouches } = req.body;
+    const { receivedDate, receivedWeight, grindingLoss,findingReceived, scrapReceivedWeight, dustReceivedWeight, ornamentWeight, pouches } = req.body;
     const grindingNumber = `${prefix}/${date}/${month}/${year}/${number}/${subnumber}`;
 
     console.log('[Grinding Update] Received data:', { 
@@ -8857,6 +8857,7 @@ app.post("/api/correction/update/:prefix/:date/:month/:year/:number/:subnumber",
       scrapReceivedWeight,
       dustReceivedWeight,
       ornamentWeight,
+      findingReceived,
       pouches 
     });
 
@@ -8883,6 +8884,7 @@ app.post("/api/correction/update/:prefix/:date/:month/:year/:number/:subnumber",
       Grinding_Scrap_Weight__c: scrapReceivedWeight,
       Grinding_Dust_Weight__c: dustReceivedWeight,
       Grinding_Ornament_Weight__c: ornamentWeight,
+      Finding_Weight__c: findingReceived,
       Status__c: 'Finished'
     };
 
@@ -8909,6 +8911,50 @@ app.post("/api/correction/update/:prefix/:date/:month/:year/:number/:subnumber",
         }
       }
     }
+
+
+
+    
+ if (findingReceived > 0) {
+      const findingInventoryQuery = await conn.query(
+        `SELECT Id, Available_weight__c FROM Inventory_ledger__c 
+       WHERE Item_Name__c = 'Finding' 
+      AND Purity__c = '91.7%'`
+      );
+
+      if (findingInventoryQuery.records.length > 0) {
+        const currentWeight =
+          findingInventoryQuery.records[0].Available_weight__c || 0;
+        const findingUpdateResult = await conn
+          .sobject("Inventory_ledger__c")
+          .update({
+            Id: findingInventoryQuery.records[0].Id,
+            Available_weight__c: currentWeight + findingReceived,
+            Last_Updated__c: receivedDate
+          });
+
+        if (!findingUpdateResult.success) {
+          throw new Error("Failed to update scrap inventory");
+        }
+      } else {;;
+        const findingCreateResult = await conn
+          .sobject("Inventory_ledger__c")
+          .create({
+            Name: "Finding",
+            Item_Name__c: "Finding",
+            Purity__c: grinding.Purity__c,
+            Available_weight__c: findingReceived,
+            Unit_of_Measure__c: "Grams",
+            Last_Updated__c: receivedDate
+          });
+
+        if (!findingCreateResult.success) {
+          throw new Error("Failed to create scrap inventory");
+        }
+      }
+    }
+
+    
 
     // Check if scrap inventory exists for this purity
     const scrapInventoryQuery = await conn.query(
@@ -9374,9 +9420,11 @@ app.post("/api/media/update/:prefix/:date/:month/:year/:number/:subnumber", asyn
   pouches=[]
 } = req.body;
 
+
+let findingReceived = Number(req.body.findingReceived || 0);
 let scrapReceivedWeight = Number(req.body.scrapReceivedWeight || req.body.scrapWeight || 0);
 let dustReceivedWeight  = Number(req.body.dustReceivedWeight  || req.body.dustWeight  || 0);
-console.log("[Grinding Update editor ] Raw body:", req.body);
+console.log("[media Update editor ] Raw body:", req.body);
 
     // Ensure numeric values
     issuedWeight = Number(issuedWeight) || 0;
@@ -9388,7 +9436,7 @@ console.log("[Grinding Update editor ] Raw body:", req.body);
 
     const grindingNumber = `${prefix}/${date}/${month}/${year}/${number}/${subnumber}`;
 
-    console.log("[Grinding Update] Received data:", {
+    console.log("[Media Update] Received data:", {
       issuedWeight,
       grindingNumber,
       receivedDate,
@@ -9397,6 +9445,7 @@ console.log("[Grinding Update editor ] Raw body:", req.body);
       scrapReceivedWeight,
       dustReceivedWeight,
       ornamentWeight,
+      findingReceived,
       pouches
     });
 
@@ -9409,7 +9458,7 @@ console.log("[Grinding Update editor ] Raw body:", req.body);
     if (!grindingQuery.records || grindingQuery.records.length === 0) {
       return res.status(404).json({
         success: false,
-        message: "Grinding record not found"
+        message: "Media record not found"
       });
     }
 
@@ -9425,6 +9474,7 @@ console.log("[Grinding Update editor ] Raw body:", req.body);
       Grinding_Scrap_Weight__c: scrapReceivedWeight,
       Grinding_Dust_Weight__c: dustReceivedWeight,
       Grinding_Ornament_Weight__c: ornamentWeight,
+      Finding_Weight__c: findingReceived,
       Status__c: "Finished"
     };
 
@@ -9458,6 +9508,48 @@ console.log("[Grinding Update editor ] Raw body:", req.body);
         }
       }
     }
+
+
+    if (findingReceived > 0) {
+      const findingInventoryQuery = await conn.query(
+        `SELECT Id, Available_weight__c FROM Inventory_ledger__c 
+       WHERE Item_Name__c = 'Finding' 
+      AND Purity__c = '91.7%'`
+      );
+
+      if (findingInventoryQuery.records.length > 0) {
+        const currentWeight =
+          findingInventoryQuery.records[0].Available_weight__c || 0;
+        const findingUpdateResult = await conn
+          .sobject("Inventory_ledger__c")
+          .update({
+            Id: findingInventoryQuery.records[0].Id,
+            Available_weight__c: currentWeight + findingReceived,
+            Last_Updated__c: receivedDate
+          });
+
+        if (!findingUpdateResult.success) {
+          throw new Error("Failed to update scrap inventory");
+        }
+      } else {;;
+        const findingCreateResult = await conn
+          .sobject("Inventory_ledger__c")
+          .create({
+            Name: "Finding",
+            Item_Name__c: "Finding",
+            Purity__c: grinding.Purity__c,
+            Available_weight__c: findingReceived,
+            Unit_of_Measure__c: "Grams",
+            Last_Updated__c: receivedDate
+          });
+
+        if (!findingCreateResult.success) {
+          throw new Error("Failed to create scrap inventory");
+        }
+      }
+    }
+
+
 
     /** ---- 4. Scrap Inventory Update ---- **/
     if (scrapReceivedWeight > 0) {
