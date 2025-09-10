@@ -9915,5 +9915,26 @@ app.get('/stonesummary', async (req, res) => {
   }
 });
 
+// get stone type API
+app.get('/api/StoneMaster', async (req, res) => {
+  try {
+    console.log("Fetching stone details...");
+
+    const query = `
+     SELECT id,type__c,colour__c,size__c,Shape__c,pieces__c,weight__c FROM Stone_Master__c
+    `;
+
+    const result = await conn.query(query);
+
+    console.log("Salesforce query result:", result);
+
+    res.json({ success: true, result});
+  } catch (err) {
+    console.error('Error fetching stone master:', err);
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+
 
 
