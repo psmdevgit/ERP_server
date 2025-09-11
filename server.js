@@ -1532,6 +1532,7 @@ app.get("/get-inventory-IssuedItems", async (req, res) => {
 
 /**--------------------------Casting Management---------- **/
 
+
 app.post("/api/casting", async (req, res) => {
   try {
     const {
@@ -1593,7 +1594,6 @@ app.post("/api/casting", async (req, res) => {
 
     const formattedDateTime = formatSalesforceDateTime(date);
     console.log('Formatted datetime:', formattedDateTime);
-
     // Create Casting Record
     const castingResult = await conn.sobject('Casting_dept__c').create({
       Name: castingNumber,
@@ -1606,6 +1606,28 @@ app.post("/api/casting", async (req, res) => {
       Issud_weight__c: totalIssued,
       status__c: "Open"
     });
+
+
+ // 1. Find the casting tree record
+const treeQuery = await conn.query(
+  `SELECT Id, Name FROM castingTree__c WHERE Name = '${castingNumber}' LIMIT 1`
+);
+
+if (!treeQuery.records || treeQuery.records.length === 0) {
+  throw new Error(`Casting tree ${castingNumber} not found`);
+}
+
+const treeId = treeQuery.records[0].Id;
+
+// 2. Update its status
+const treeUpdateResult = await conn.sobject("castingTree__c").update({
+  Id: treeId,
+  Status__c: "Completed"
+});
+
+if (!treeUpdateResult.success) {
+  throw new Error(`Failed to update casting tree ${castingNumber}`);
+}
 
     if (!castingResult.success) {
       throw new Error('Failed to create casting record');
@@ -1691,6 +1713,7 @@ app.post("/api/casting", async (req, res) => {
     });
   }
 });
+
 
 
 app.get("/api/casting", async (req, res) => {
