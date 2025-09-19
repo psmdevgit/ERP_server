@@ -8345,6 +8345,42 @@ app.get("/api/previewModels", async (req, res) => {
     res.status(500).json({ error: "Failed to fetch models" });
   }
 });
+
+// Get models for category  with category filter
+app.get("/api/previewImage", async (req, res) => {
+  const { modelName } = req.query;
+  if (!modelName) {
+    return res.status(400).json({ success: false, message: "modelName is required" });
+  }
+
+  try {
+    // Escape single quotes for SOQL safety
+    const safeModelName = modelName.replace(/'/g, "\\'");
+
+    const soql = `
+      SELECT Id, Name, Image_URL__c
+      FROM Jewlery_Model__c
+      WHERE Name = '${safeModelName}'
+      ORDER BY Name
+    `;
+
+    const result = await conn.query(soql);
+
+    res.json({
+      success: true,
+      data: result.records.map((rec) => ({
+        id: rec.Id,
+        name: rec.Name,
+        image: rec.Image_URL__c
+      }))
+    });
+  } catch (error) {
+    console.error("Error fetching preview image:", error);
+    res.status(500).json({ success: false, message: "Failed to fetch models" });
+  }
+});
+
+
 // Get models for category
 app.get("/api/previewModelsAll", async (req, res) => {
 
@@ -9915,5 +9951,132 @@ app.get('/stonesummary', async (req, res) => {
   }
 });
 
+// get stone type API
+app.get('/api/StoneMaster', async (req, res) => {
+  try {
+    console.log("Fetching stone details...");
 
+    const query = `
+     SELECT id,type__c,colour__c,size__c,Shape__c,pieces__c,weight__c FROM Stone_Master__c
+    `;
+
+    const result = await conn.query(query);
+
+    console.log("Salesforce query result:", result);
+
+    res.json({ success: true, result});
+  } catch (err) {
+    console.error('Error fetching stone master:', err);
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// order processing weight 
+// order processing weight 
+app.get("/api/order-processing-weights", async (req, res) => {
+  const { orderId } = req.query;
+  if (!orderId) {
+    return res.status(400).json({ success: false, message: "orderId is required" });
+  }
+
+  try {
+    // Queries for each process
+    const filling = await conn.query(`
+      SELECT Receievd_weight__c, Issued_weight__c
+      FROM Filing__c 
+      WHERE Order_Id__c = '${orderId}'
+    `);
+
+    const grinding = await conn.query(`
+      SELECT Received_Weight__c , Issued_weight__c
+      FROM Grinding__c 
+      WHERE Order_Id__c = '${orderId}'
+    `);
+
+    const media = await conn.query(`
+      SELECT Received_Weight__c, Issued_weight__c
+      FROM Media__c
+      WHERE Order_Id__c = '${orderId}'
+    `);
+
+    const correction = await conn.query(`
+      SELECT Received_Weight__c, Issued_weight__c
+      FROM Correction_c__c
+      WHERE Order_Id__c = '${orderId}'
+    `);
+
+    const setting = await conn.query(`
+      SELECT Returned_Weight__c, Issued_weight__c
+      FROM Setting__c
+      WHERE Order_Id__c = '${orderId}'
+    `);
+
+    const polishing = await conn.query(`
+      SELECT Received_Weight__c, Issued_weight__c
+      FROM Polishing__c
+      WHERE Order_Id__c = '${orderId}'
+    `);
+
+    const dull = await conn.query(`
+      SELECT Returned_Weight__c, Issued_weight__c
+      FROM Dull__c
+      WHERE Order_Id__c = '${orderId}'
+    `);
+
+    const plating = await conn.query(`
+      SELECT Returned_Weight__c, Issued_weight__c
+      FROM Plating__c
+      WHERE Order_Id__c = '${orderId}'
+    `);
+
+    const cutting = await conn.query(`
+      SELECT Returned_Weight__c, Issued_weight__c
+      FROM Cutting__c
+      WHERE Order_Id__c = '${orderId}'
+    `);
+
+    // Helper to aggregate a process
+    const aggregateProcess = (process, records, receivedField, issuedField) => {
+      let totalReceived = 0;
+      let totalIssued = 0;
+      let totalProcessWt = 0;
+
+      records.forEach(r => {
+        const received = Number(r[receivedField] ?? 0); // null-safe
+        const issued = Number(r[issuedField] ?? 0);     // null-safe
+
+        totalReceived += received;
+        totalIssued += issued;
+
+        // ProcessWt per row
+        totalProcessWt += received === 0 ? issued : 0 ;
+      });
+
+      return {
+        process,
+        ReceivedWt: totalReceived,
+        IssuedWt: totalIssued,
+        ProcessWt: totalProcessWt
+      };
+    };
+
+    // Grouped results by process
+    const data = [
+      aggregateProcess("Filling", filling.records, "Receievd_weight__c", "Issued_weight__c"),
+      aggregateProcess("Grinding", grinding.records, "Received_Weight__c", "Issued_weight__c"),
+      aggregateProcess("Media", media.records, "Received_Weight__c", "Issued_weight__c"),
+      aggregateProcess("Correction", correction.records, "Received_Weight__c", "Issued_weight__c"),
+      aggregateProcess("Setting", setting.records, "Returned_Weight__c", "Issued_weight__c"),
+      aggregateProcess("Polishing", polishing.records, "Received_Weight__c", "Issued_weight__c"),
+      aggregateProcess("Dull", dull.records, "Returned_Weight__c", "Issued_weight__c"),
+      aggregateProcess("Plating", plating.records, "Returned_Weight__c", "Issued_weight__c"),
+      aggregateProcess("Cutting", cutting.records, "Returned_Weight__c", "Issued_weight__c"),
+    ];
+
+    res.json({ success: true, data });
+  } catch (error) {
+    console.error("Error fetching processing weights:", error);
+    res.status(500).json({ success: false, message: "Failed to fetch processing weights" });
+  }
+});
 
