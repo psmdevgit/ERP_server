@@ -1532,6 +1532,7 @@ app.get("/get-inventory-IssuedItems", async (req, res) => {
 
 /**--------------------------Casting Management---------- **/
 
+
 app.post("/api/casting", async (req, res) => {
   try {
     const {
@@ -1593,7 +1594,6 @@ app.post("/api/casting", async (req, res) => {
 
     const formattedDateTime = formatSalesforceDateTime(date);
     console.log('Formatted datetime:', formattedDateTime);
-
     // Create Casting Record
     const castingResult = await conn.sobject('Casting_dept__c').create({
       Name: castingNumber,
@@ -1606,6 +1606,28 @@ app.post("/api/casting", async (req, res) => {
       Issud_weight__c: totalIssued,
       status__c: "Open"
     });
+
+
+ // 1. Find the casting tree record
+const treeQuery = await conn.query(
+  `SELECT Id, Name FROM castingTree__c WHERE Name = '${castingNumber}' LIMIT 1`
+);
+
+if (!treeQuery.records || treeQuery.records.length === 0) {
+  throw new Error(`Casting tree ${castingNumber} not found`);
+}
+
+const treeId = treeQuery.records[0].Id;
+
+// 2. Update its status
+const treeUpdateResult = await conn.sobject("castingTree__c").update({
+  Id: treeId,
+  Status__c: "Completed"
+});
+
+if (!treeUpdateResult.success) {
+  throw new Error(`Failed to update casting tree ${castingNumber}`);
+}
 
     if (!castingResult.success) {
       throw new Error('Failed to create casting record');
@@ -1691,6 +1713,7 @@ app.post("/api/casting", async (req, res) => {
     });
   }
 });
+
 
 
 app.get("/api/casting", async (req, res) => {
@@ -8345,42 +8368,6 @@ app.get("/api/previewModels", async (req, res) => {
     res.status(500).json({ error: "Failed to fetch models" });
   }
 });
-
-// Get models for category  with category filter
-app.get("/api/previewImage", async (req, res) => {
-  const { modelName } = req.query;
-  if (!modelName) {
-    return res.status(400).json({ success: false, message: "modelName is required" });
-  }
-
-  try {
-    // Escape single quotes for SOQL safety
-    const safeModelName = modelName.replace(/'/g, "\\'");
-
-    const soql = `
-      SELECT Id, Name, Image_URL__c
-      FROM Jewlery_Model__c
-      WHERE Name = '${safeModelName}'
-      ORDER BY Name
-    `;
-
-    const result = await conn.query(soql);
-
-    res.json({
-      success: true,
-      data: result.records.map((rec) => ({
-        id: rec.Id,
-        name: rec.Name,
-        image: rec.Image_URL__c
-      }))
-    });
-  } catch (error) {
-    console.error("Error fetching preview image:", error);
-    res.status(500).json({ success: false, message: "Failed to fetch models" });
-  }
-});
-
-
 // Get models for category
 app.get("/api/previewModelsAll", async (req, res) => {
 
@@ -9970,8 +9957,314 @@ app.get('/api/StoneMaster', async (req, res) => {
     res.status(500).json({ success: false, message: err.message });
   }
 });
+// ====================== Stone Master ================================ ==========================
 
-// order processing weight 
+// API Route: Create Stone Master Record
+app.post('/create/stone', async (req, res) => {
+  try {
+    const { type, color, shape, size, piece, weight } = req.body;
+
+    if (!type || !color || !shape || !size || !piece || !weight) {
+      return res.status(400).json({ success: false, message: 'All fields are required' });
+    }
+
+    console.log(type, color, shape, size, piece, weight);
+     // Insert into Salesforce (or SQL, depending on what you're using)
+    const newRecord = await conn.sobject("Stone_Master__c").create({
+     Type__c: type,
+      Colour__c: color,
+      Shape__c: shape,
+      Size__c: size,
+      Pieces__c: piece,
+      Weight__c: weight,
+    });
+
+    res.json({ success: true, id: newRecord.id, ...req.body });
+
+  } catch (err) {
+    console.error('Server error:', err);
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// Inventory summary API
+app.get('/stonesummary', async (req, res) => {
+  try {
+    console.log("Fetching stone summary...");
+
+    const query = `
+      SELECT Type__c, SUM(Pieces__c) totalPieces, SUM(Weight__c) totalWeight
+      FROM Stone_Master__c
+      GROUP BY Type__c
+    `;
+
+    const result = await conn.query(query);
+
+    console.log("Salesforce query result:", result);
+
+    const summary = result.records.map((record) => ({
+      type: record['Type__c'],
+      totalPieces: parseFloat(record['totalPieces']) || 0,
+      totalWeight: parseFloat(record['totalWeight']) || 0,
+    }));
+
+    res.json({ success: true, summary });
+  } catch (err) {
+    console.error('Error fetching inventory summary:', err);
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+app.get("/api/stones", async (req, res) => {
+  try {
+    const result = await conn.sobject("Stone_Master__c")
+      .find({}, "Id, Name, Type__c, Colour__c, Shape__c, Size__c, Pieces__c, Weight__c")
+      .execute();
+
+    res.json({ success: true, data: result });
+  } catch (error) {
+    console.error("Error fetching stones:", error);
+    res.json({ success: false, message: "Failed to fetch stones" });
+  }
+});
+
+// routes/treeCasting.js
+app.post("/tree-casting", async (req, res) => {
+  try {
+    const {
+      Name,
+      Tree_Weight__c,
+      orderId__c,
+      stones = []
+    } = req.body;
+
+    if (!stones.length) {
+      return res.json({ success: false, message: "No stones selected" });
+    }
+
+    // 1️⃣ Create the parent Tree Casting
+    const newTree = await conn.sobject("castingTree__c").create({
+      Name,
+      Tree_Weight__c,
+      stone_type__c: stones.map(s => s.type || "unknown").join(", "),
+      stone_color__c: stones.map(s => s.color || "unknown").join(", "),
+      stone_shape__c: stones.map(s => s.shape || "unknown").join(", "),
+      stone_weight__c: stones.reduce((sum, s) => sum + (parseFloat(s.weight) || 0), 0),
+      orderId__c,
+      status__c: "Pending",
+      issued_Date__c: new Date().toISOString().split("T")[0]
+    });
+
+    if (!newTree.success) {
+      return res.json({ success: false, message: "Failed to create Tree Casting" });
+    }
+
+    console.log("✅ Tree Casting created with ID:", newTree.id);
+
+    // 2️⃣ For each stone, create a child record in TreeStone__c
+    for (const stone of stones) {
+      await conn.sobject("TreeStone__c").create({
+        castingTree__c: newTree.id,     // parent relation
+        Stone_Master__c: stone.id || null, // optional lookup
+        Name: stone.name || "Unnamed Stone",
+        Type__c: stone.type || "",
+        Colour__c: stone.color || "",
+        Shape__c: stone.shape || "",
+        Size__c: stone.size || "",
+        Pieces__c: stone.pcs || 0,
+        Weight__c: parseFloat(stone.weight) || 0
+      });
+
+      // 3️⃣ Update stone stock only if Id exists
+      if (stone.id) {
+        const dbStone = await conn.sobject("Stone_Master__c")
+          .findOne({ Id: stone.id }, "Id, Weight__c");
+
+        if (dbStone) {
+          const updatedWeight = (dbStone.Weight__c || 0) - (parseFloat(stone.weight) || 0);
+          if (updatedWeight >= 0) {
+            await conn.sobject("Stone_Master__c").update({
+              Id: dbStone.Id,
+              Weight__c: updatedWeight
+            });
+          }
+        }
+      } else {
+        console.warn(`⚠️ Skipping inventory update for stone without Id (name=${stone.name || "unknown"})`);
+      }
+    }
+
+    res.json({ success: true, data: newTree });
+  } catch (error) {
+    console.error("❌ Error saving tree casting:", error);
+    res.json({ success: false, message: "Server error" });
+  }
+});
+
+
+
+
+  // GET /casting-trees
+app.get("/casting-trees", async (req, res) => {
+  try {
+    const trees = await conn.query(`
+      SELECT Id, Name, Tree_Weight__c,issued_Date__c, OrderID__C,stone_weight__c,status__c
+      FROM CastingTree__c where status__c='Pending'
+      ORDER BY CreatedDate DESC
+      LIMIT 50
+    `);
+    res.json({ success: true, data: trees.records });
+  } catch (error) {
+    console.error("Error fetching trees:", error);
+    res.status(500).json({ success: false, message: "Failed to fetch trees" });
+  }
+});
+app.get("/casting-trees/all", async (req, res) => {
+  try {
+    const trees = await conn.query(`
+      SELECT Id, Name, Tree_Weight__c,issued_Date__c, OrderID__C,stone_color__c,stone_name__c,
+      stone_pcs__c,stone_shape__c,stone_size__c,stone_type__c,status__c,stone_weight__c
+      FROM CastingTree__c
+      ORDER BY CreatedDate DESC
+      LIMIT 50
+    `);
+    res.json({ success: true, data: trees.records });
+  } catch (error) {
+    console.error("Error fetching trees:", error);
+    res.status(500).json({ success: false, message: "Failed to fetch trees" });
+  }
+});
+app.post("/api/media-record/create", async (req, res) => {
+  try {
+    const { 
+      grindingId,  
+      issuedWeight, 
+      issuedDate, 
+      pouches,
+      orderId,
+      quantity,
+      name
+        
+    } = req.body;
+
+
+
+    // First create the Grinding record
+    const grindingResult = await conn.sobject('Media__C').create({
+      Name: grindingId,
+      Issued_Weight__c: issuedWeight,
+      Issued_Date__c: issuedDate,
+      Status__c: 'In progress',
+      Product__C : name,
+      Order_Id__c: orderId,
+      Quantity__c : quantity
+
+    });
+
+    console.log('Media creation result:', grindingResult);
+
+    if (!grindingResult.success) {
+      throw new Error('Failed to create Media record');
+    }
+
+    // Create WIP pouches
+    const pouchRecords = pouches.map(pouch => ({
+      Name: pouch.pouchId,
+      Media__c: grindingResult.id,
+      Order_Id__c: pouch.orderId,
+      Isssued_Weight_media__c: pouch.weight,
+      Product__c : pouch.name,
+      Quantity__c: pouch.quantity
+    }));
+
+    console.log('Creating pouches:', pouchRecords);
+
+
+    const pouchResults = await conn.sobject('Pouch__c').create(pouchRecords);
+    console.log('Pouch creation results:', pouchResults);
+
+
+    // Add this section to create pouch items with clear logging
+    if (Array.isArray(pouchResults)) {
+      console.log('Starting pouch items creation...');
+      
+
+      const pouchItemPromises = pouchResults.map(async (pouchResult, index) => {
+        console.log(`Processing pouch ${index + 1}:`, pouchResult);
+        
+
+        if (pouches[index].categories && pouches[index].categories.length > 0) {
+          console.log(`Found ${pouches[index].categories.length} categories for pouch ${index + 1}`);
+          
+          const pouchItemRecords = pouches[index].categories.map(category => {
+            const itemRecord = {
+              Name: category.category,
+              WIPPouch__c: pouchResult.id,
+              Category__c: category.category,
+              Quantity__c: category.quantity
+            };
+            console.log('Creating pouch item:', itemRecord);
+            return itemRecord;
+          });
+
+          try {
+            console.log(`Attempting to create ${pouchItemRecords.length} pouch items`);
+            const itemResults = await conn.sobject('Pouch_Items__c').create(pouchItemRecords);
+            
+            if (Array.isArray(itemResults)) {
+              itemResults.forEach((result, i) => {
+                if (result.success) {
+                  console.log(`Pouch item ${i + 1} created successfully:`, result);
+                } else {
+                  console.error(`Pouch item ${i + 1} creation failed:`, result.errors);
+                }
+              });
+
+            } else {
+              if (itemResults.success) {
+                console.log('Single pouch item created successfully:', itemResults);
+              } else {
+                console.error('Single pouch item creation failed:', itemResults.errors);
+              }
+            }
+            
+            return itemResults;
+          } catch (error) {
+            console.error('Error in pouch items creation:', error.message);
+            console.error('Full error:', error);
+            throw error;
+          }
+        } else {
+          console.log(`No categories found for pouch ${index + 1}`);
+        }
+      });
+
+      console.log('Waiting for all pouch items to be created...');
+      const pouchItemResults = await Promise.all(pouchItemPromises);
+      console.log('All pouch items creation completed:', pouchItemResults);
+    }
+
+    res.json({
+      success: true,
+      message: "Grinding record created successfully",
+      data: {
+        grindingId,
+        grindingRecordId: grindingResult.id,
+        pouches: pouchResults
+      }
+    });
+
+  } catch (error) {
+    console.error("Error creating grinding record:", error);
+    console.error("Full error details:", JSON.stringify(error, null, 2));
+    res.status(500).json({
+      success: false,
+      message: error.message || "Failed to create grinding record"
+    });
+  }
+});
+
+
 // order processing weight 
 app.get("/api/order-processing-weights", async (req, res) => {
   const { orderId } = req.query;
@@ -10079,4 +10372,8 @@ app.get("/api/order-processing-weights", async (req, res) => {
     res.status(500).json({ success: false, message: "Failed to fetch processing weights" });
   }
 });
+
+
+
+
 
