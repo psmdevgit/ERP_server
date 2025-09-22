@@ -1438,12 +1438,14 @@ app.get("/get-inventory", async (req, res) => {
   try {
     // Query to fetch inventory items with their names and available weights
     const query = `
-      SELECT 
+     SELECT 
         Name,
         Item_Name__c,
-        Available_weight__c,
+        sum(Available_weight__c) weight,
         Purity__c
       FROM Inventory_ledger__c
+group by Name,
+        Item_Name__c,Purity__c
       ORDER BY Name ASC
     `;
 
@@ -1459,11 +1461,11 @@ app.get("/get-inventory", async (req, res) => {
     // Format the response data
     const inventoryItems = result.records.map(item => ({
       name: item.Item_Name__c,
-      availableWeight: item.Available_weight__c,
+      availableWeight: item.weight,
       purity: item.Purity__c
     }));
 
-
+console.log(inventoryItems);
 
     res.status(200).json({
       success: true,
@@ -1679,7 +1681,8 @@ if (!treeUpdateResult.success) {
         Purity__c: item.purity,
         Issue_Weight__c: item.issueWeight,
         Pure_Metal_weight__c: item.issuedGold,
-        Alloy_Weight__c: item.issuedAlloy
+        Alloy_Weight__c: item.issuedAlloy,
+        Order_Id__c: item.order
       });
 
       if (!result.success) {
@@ -8121,7 +8124,7 @@ app.get("/get-inventory-transactions", async (req, res) => {
   try {
     // Query Salesforce for issued inventory records
     const result = await conn.query(`
-      SELECT 
+  SELECT 
         Id,
         Name,
         Issued_Date__c,
@@ -8129,7 +8132,8 @@ app.get("/get-inventory-transactions", async (req, res) => {
         Pure_Metal_weight__c,
         Alloy_Weight__c,
         CreatedDate,
-        CreatedBy.Name
+        CreatedBy.Name,
+	Order_Id__c
       FROM Issued_inventory__c
       ORDER BY CreatedDate ASC
     `);
@@ -8150,7 +8154,8 @@ app.get("/get-inventory-transactions", async (req, res) => {
       pureMetalWeight: item.Pure_Metal_weight__c,
       alloyWeight: item.Alloy_Weight__c,
       createdDate: item.CreatedDate,
-      createdByName: item.CreatedBy?.Name || null
+      createdByName: item.CreatedBy?.Name || null,
+      order:item.Order_Id__c
     }));
 
     res.status(200).json({
