@@ -10134,6 +10134,135 @@ app.get("/casting-trees/all", async (req, res) => {
     res.status(500).json({ success: false, message: "Failed to fetch trees" });
   }
 });
+app.post("/api/media-record/create", async (req, res) => {
+  try {
+    const { 
+      grindingId,  
+      issuedWeight, 
+      issuedDate, 
+      pouches,
+      orderId,
+      quantity,
+      name
+        
+    } = req.body;
+
+
+
+    // First create the Grinding record
+    const grindingResult = await conn.sobject('Media__C').create({
+      Name: grindingId,
+      Issued_Weight__c: issuedWeight,
+      Issued_Date__c: issuedDate,
+      Status__c: 'In progress',
+      Product__C : name,
+      Order_Id__c: orderId,
+      Quantity__c : quantity
+
+    });
+
+    console.log('Media creation result:', grindingResult);
+
+    if (!grindingResult.success) {
+      throw new Error('Failed to create Media record');
+    }
+
+    // Create WIP pouches
+    const pouchRecords = pouches.map(pouch => ({
+      Name: pouch.pouchId,
+      Media__c: grindingResult.id,
+      Order_Id__c: pouch.orderId,
+      Isssued_Weight_media__c: pouch.weight,
+      Product__c : pouch.name,
+      Quantity__c: pouch.quantity
+    }));
+
+    console.log('Creating pouches:', pouchRecords);
+
+
+    const pouchResults = await conn.sobject('Pouch__c').create(pouchRecords);
+    console.log('Pouch creation results:', pouchResults);
+
+
+    // Add this section to create pouch items with clear logging
+    if (Array.isArray(pouchResults)) {
+      console.log('Starting pouch items creation...');
+      
+
+      const pouchItemPromises = pouchResults.map(async (pouchResult, index) => {
+        console.log(`Processing pouch ${index + 1}:`, pouchResult);
+        
+
+        if (pouches[index].categories && pouches[index].categories.length > 0) {
+          console.log(`Found ${pouches[index].categories.length} categories for pouch ${index + 1}`);
+          
+          const pouchItemRecords = pouches[index].categories.map(category => {
+            const itemRecord = {
+              Name: category.category,
+              WIPPouch__c: pouchResult.id,
+              Category__c: category.category,
+              Quantity__c: category.quantity
+            };
+            console.log('Creating pouch item:', itemRecord);
+            return itemRecord;
+          });
+
+          try {
+            console.log(`Attempting to create ${pouchItemRecords.length} pouch items`);
+            const itemResults = await conn.sobject('Pouch_Items__c').create(pouchItemRecords);
+            
+            if (Array.isArray(itemResults)) {
+              itemResults.forEach((result, i) => {
+                if (result.success) {
+                  console.log(`Pouch item ${i + 1} created successfully:`, result);
+                } else {
+                  console.error(`Pouch item ${i + 1} creation failed:`, result.errors);
+                }
+              });
+
+            } else {
+              if (itemResults.success) {
+                console.log('Single pouch item created successfully:', itemResults);
+              } else {
+                console.error('Single pouch item creation failed:', itemResults.errors);
+              }
+            }
+            
+            return itemResults;
+          } catch (error) {
+            console.error('Error in pouch items creation:', error.message);
+            console.error('Full error:', error);
+            throw error;
+          }
+        } else {
+          console.log(`No categories found for pouch ${index + 1}`);
+        }
+      });
+
+      console.log('Waiting for all pouch items to be created...');
+      const pouchItemResults = await Promise.all(pouchItemPromises);
+      console.log('All pouch items creation completed:', pouchItemResults);
+    }
+
+    res.json({
+      success: true,
+      message: "Grinding record created successfully",
+      data: {
+        grindingId,
+        grindingRecordId: grindingResult.id,
+        pouches: pouchResults
+      }
+    });
+
+  } catch (error) {
+    console.error("Error creating grinding record:", error);
+    console.error("Full error details:", JSON.stringify(error, null, 2));
+    res.status(500).json({
+      success: false,
+      message: error.message || "Failed to create grinding record"
+    });
+  }
+});
 
 
 
